@@ -8,5 +8,5 @@ class TopBar(tk.Frame):
         super(TopBar,self).__init__(height=SZ_topbar_h, bg=CC_cobalt, padx=10, pady=10)
         
         self.pack_propagate(False)
-        lbl_username = tk.Label(self, text='Dott. Mario Rossi', bg=CC_cobalt, fg=CC_white)
+        lbl_username = tk.Label(self, text='Dott. Mario Rossi', bg=CC_cobalt, fg=CC_white) # TODO vedi se cambiare il text
         lbl_username.pack(side='right', fill='y')

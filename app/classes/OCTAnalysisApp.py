@@ -1,6 +1,7 @@
 import tkinter as tk
 import tkinter.font as tkFont
 from classes.TopBar import *
+from classes.PatientsFrame import *
 from configs.colors import *
 from configs.fonts import *
 
@@ -22,8 +23,8 @@ class OCTAnalysisApp(tk.Tk):
         # frame principale
         self.rowconfigure(1, weight=1)
         self.columnconfigure(0, weight=1)
-        frm_main = tk.Frame(bg=CC_white)
-        frm_main.grid(row=1, column=0, sticky='nswe')
+        frm_patients = PatientsFrame()
+        frm_patients.grid(row=1, column=0, sticky='nswe')
         
     def centered_geometry(self,window_w, window_h):
         screen_w = self.winfo_screenwidth()

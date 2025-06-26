@@ -2,25 +2,27 @@ import tkinter as tk
 from tkinter import ttk
 from configs.colors import *
 from configs.sizes import *
+from configs.fonts import *
 from util.funs import *
 
-
-class OnePatientFrame(tk.Frame):
+class PatientsListFrame(tk.Frame):
     
     def __init__(self, parent, table_headings, table_rows):
-        super(OnePatientFrame,self).__init__(height=SZ_topbar_h, padx=10, pady=10)
+        super(PatientsListFrame,self).__init__(bg=CC_frm_default)
         
         # stile della Treeview
         style = ttk.Style()
         style.theme_use('clam')
-        style.configure('Treeview', rowheight=50, relief='solid', borderwidth=1)
-        style.map('Treeview',
+        style.layout('PLTreeview', style.layout('Treeview'))
+        style.configure('PLTreeview', rowwidth=0, rowheight=SZ_tbl_pat_list_row_h, relief='solid', borderwidth=1)
+        style.map('PLTreeview',
             background=[('active', CC_tbl_highlight), ('selected', CC_tbl_selected)],
             foreground=[('active', CC_tbl_text_highlight), ('selected', CC_tbl_text_selected), ('!selected', CC_tbl_text)]
         )
         
         # attributi di classe
-        self.tbl_patients = self.setupTreeview(table_headings, table_rows)
+        self.setupTitle(f'Lista dei pazienti')
+        self.tbl_patients = self.setupTreeview(table_headings, table_rows, 'PLTreeview')
         self.scroll_bar = self.setupScrollbar()
         self.parent = parent
         self.last_iid = None
@@ -35,6 +37,44 @@ class OnePatientFrame(tk.Frame):
         self.rowconfigure(1, weight=10)
         self.rowconfigure(2, weight=1)
 
+    def setupTreeview(self, table_headings, table_rows, style):
+        # tabella dei pazienti
+        tbl_patients = ttk.Treeview(self, columns=table_headings, show='headings', style=style)
+        
+        # stile righe pari e righe dispari
+        tbl_patients.tag_configure('evenrow', background=CC_tbl_evenrow) 
+        tbl_patients.tag_configure('oddrow', background=CC_tbl_oddrow)
+        
+        for heading in table_headings:
+            tbl_patients.heading(heading, text=heading.upper(), anchor='center')            
+            tbl_patients.column(heading, anchor='center')
+        
+        # configurazione e posizionamento della treeview
+        tbl_patients.tag_configure("highlight", background=CC_tbl_highlight)
+        tbl_patients.grid(row=1, column=1, sticky='nswe')
+        
+        # eventi della treeview
+        tbl_patients.bind("<Motion>", self.handle_highlight)
+        tbl_patients.bind("<MouseWheel>", self.handle_highlight)
+        tbl_patients.bind("<Leave>", self.on_leave)
+        tbl_patients.bind("<Button-1>", self.open_patient_frame)
+        tbl_patients.bind("<<TreeviewSelect>>", self.stop_selection)
+        
+        # riempimento della tabella
+        for i,row in enumerate(table_rows):
+            tbl_patients.insert(parent='', index=tk.END, iid=i, values=row)
+            
+            # assegna lo stile il tag in base alla posizione nella tabella
+            if is_even(i): tbl_patients.item(i, tags=('evenrow'))
+            else: tbl_patients.item(i, tags=('oddrow'))
+            
+        return tbl_patients
+    
+    def setupTitle(self, text):
+        lbl_title = tk.Label(self, text=text, font=(FT_family, FT_h1_size), bg=CC_frm_default)
+        lbl_title.grid(row=0, column=1)
+        return lbl_title
+
     def setupScrollbar(self):
         scroll_bar = tk.Scrollbar(self, orient='vertical', command=self.tbl_patients.yview)
         scroll_bar.grid(row=1, column=2, sticky='ns')
@@ -44,6 +84,18 @@ class OnePatientFrame(tk.Frame):
         self.tbl_patients.bind('<Button-5>', self.handle_scroll(type='down'))
         
         return scroll_bar
+
+    def open_patient_frame(self, event):
+        
+        # ottiene l'id del paziente 
+        item_iid = self.tbl_patients.identify_row(event.y)
+        item = self.tbl_patients.item(item_iid)
+
+        # dizionario del paziente composto da chiavi e valori (chiavi=headings, valori=valori dell'item)
+        patient_dict = dict(zip(self.tbl_patients['columns'], item['values']))
+    
+        # passa l'esecuzione al parent, che gestirà l'apertura del frame del paziente
+        self.parent.open_patient_history(patient_dict)
 
     def handle_scroll(self, type):
         # controlla il tipo di handler da restituire, in base al tipo richiesto
@@ -69,37 +121,6 @@ class OnePatientFrame(tk.Frame):
 
         return scroll
 
-    def setupTreeview(self, table_headings, table_rows):
-        # tabella dei pazienti
-        tbl_patients = ttk.Treeview(self, columns=table_headings, show='headings')
-        
-        # stile righe pari e righe dispari
-        tbl_patients.tag_configure('evenrow', background=CC_tbl_evenrow) 
-        tbl_patients.tag_configure('oddrow', background=CC_tbl_oddrow)
-        
-        for heading in table_headings:
-            tbl_patients.heading(heading, text=heading, anchor='center')            
-            tbl_patients.column(heading, anchor='center')
-        
-        # configurazione e posizionamento della treeview
-        tbl_patients.tag_configure("highlight", background=CC_tbl_highlight)
-        tbl_patients.grid(row=1, column=1, sticky='nswe')
-        
-        # eventi della treeview
-        tbl_patients.bind("<Motion>", self.handle_highlight)
-        tbl_patients.bind("<MouseWheel>", self.handle_highlight)
-        tbl_patients.bind("<Leave>", self.on_leave)
-        
-        # riempimento della tabella
-        for i,row in enumerate(table_rows):
-            tbl_patients.insert(parent='', index=tk.END, iid=i, values=row)
-            
-            # assegna lo stile il tag in base alla posizione nella tabella
-            if is_even(i): tbl_patients.item(i, tags=('evenrow'))
-            else: tbl_patients.item(i, tags=('oddrow'))
-            
-        return tbl_patients
-    
     def handle_highlight(self,event,*args):
         # imposta il cursore
         self.configure(cursor="hand2")
@@ -153,3 +174,7 @@ class OnePatientFrame(tk.Frame):
         
         # toglie l'highlight
         self.tbl_patients.item(iid, tags=remove_tag('highlight', tags))
+        
+    def stop_selection(self, event):
+        for selection in self.tbl_patients.selection():
+            self.tbl_patients.selection_remove(selection)

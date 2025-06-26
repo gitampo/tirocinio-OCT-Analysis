@@ -12,7 +12,11 @@ __CC_white_cobalt  = "#8EB6EE"
 __CC_light_blue    = "#040405" 
 __CC_ice_blue      = "#CDDDF1" 
 __CC_cool_gray     = "#C7D4E6" 
-__CC_white_snow    = "#E3ECF5"
+__CC_white_snow    = "#D6E4F3"
+__CC_light_gray    = '#EEEBE7'
+
+# colori dei frame
+CC_frm_default = __CC_white
 
 # colori della topbar
 CC_topbar      = __CC_cobalt

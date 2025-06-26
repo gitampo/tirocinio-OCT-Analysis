@@ -11,7 +11,6 @@ def retrieve_all_patients():
     return headings, rows
 
 def retrieve_one_patient_history(patient_id):
-    print(patient_id)
     # ottiene il data frame dal file csv
     df = pd.read_csv('./patients_history.csv')
     df = df[df['id_paziente']==patient_id]

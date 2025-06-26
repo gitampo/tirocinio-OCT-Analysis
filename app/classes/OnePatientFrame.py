@@ -5,15 +5,15 @@ from configs.sizes import *
 from util.funs import *
 
 
-class PatientsFrame(tk.Frame):
+class OnePatientFrame(tk.Frame):
     
     def __init__(self, parent, table_headings, table_rows):
-        super(PatientsFrame,self).__init__(height=SZ_topbar_h, padx=10, pady=10)
+        super(OnePatientFrame,self).__init__(height=SZ_topbar_h, padx=10, pady=10)
         
         # stile della Treeview
         style = ttk.Style()
         style.theme_use('clam')
-        style.configure('Treeview', rowheight=SZ_tbl_row_h, relief='solid', borderwidth=1)
+        style.configure('Treeview', rowheight=50, relief='solid', borderwidth=1)
         style.map('Treeview',
             background=[('active', CC_tbl_highlight), ('selected', CC_tbl_selected)],
             foreground=[('active', CC_tbl_text_highlight), ('selected', CC_tbl_text_selected), ('!selected', CC_tbl_text)]
@@ -35,38 +35,6 @@ class PatientsFrame(tk.Frame):
         self.rowconfigure(1, weight=10)
         self.rowconfigure(2, weight=1)
 
-    def setupTreeview(self, table_headings, table_rows):
-        # tabella dei pazienti
-        tbl_patients = ttk.Treeview(self, columns=table_headings, show='headings')
-        
-        # stile righe pari e righe dispari
-        tbl_patients.tag_configure('evenrow', background=CC_tbl_evenrow) 
-        tbl_patients.tag_configure('oddrow', background=CC_tbl_oddrow)
-        
-        for heading in table_headings:
-            tbl_patients.heading(heading, text=heading.upper(), anchor='center')            
-            tbl_patients.column(heading, anchor='center')
-        
-        # configurazione e posizionamento della treeview
-        tbl_patients.tag_configure("highlight", background=CC_tbl_highlight)
-        tbl_patients.grid(row=1, column=1, sticky='nswe')
-        
-        # eventi della treeview
-        tbl_patients.bind("<Motion>", self.handle_highlight)
-        tbl_patients.bind("<MouseWheel>", self.handle_highlight)
-        tbl_patients.bind("<Leave>", self.on_leave)
-        tbl_patients.bind("<Button-1>", self.open_patient_frame)
-        
-        # riempimento della tabella
-        for i,row in enumerate(table_rows):
-            tbl_patients.insert(parent='', index=tk.END, iid=i, values=row)
-            
-            # assegna lo stile il tag in base alla posizione nella tabella
-            if is_even(i): tbl_patients.item(i, tags=('evenrow'))
-            else: tbl_patients.item(i, tags=('oddrow'))
-            
-        return tbl_patients
-
     def setupScrollbar(self):
         scroll_bar = tk.Scrollbar(self, orient='vertical', command=self.tbl_patients.yview)
         scroll_bar.grid(row=1, column=2, sticky='ns')
@@ -76,19 +44,6 @@ class PatientsFrame(tk.Frame):
         self.tbl_patients.bind('<Button-5>', self.handle_scroll(type='down'))
         
         return scroll_bar
-
-    def open_patient_frame(self, event):
-        
-        # ottiene l'id del paziente 
-        item_iid = self.tbl_patients.identify_row(event.y)
-        item = self.tbl_patients.item(item_iid)
-
-        
-        # dizionario del paziente composto da chiavi e valori (chiavi=headings, valori=valori dell'item)
-        patient_dict = dict(zip(self.tbl_patients['columns'], item['values']))
-    
-        # passa l'esecuzione al parent, che gestirà l'apertura del frame del paziente
-        self.parent.open_patient_frame(patient_dict)
 
     def handle_scroll(self, type):
         # controlla il tipo di handler da restituire, in base al tipo richiesto
@@ -114,6 +69,37 @@ class PatientsFrame(tk.Frame):
 
         return scroll
 
+    def setupTreeview(self, table_headings, table_rows):
+        # tabella dei pazienti
+        tbl_patients = ttk.Treeview(self, columns=table_headings, show='headings')
+        
+        # stile righe pari e righe dispari
+        tbl_patients.tag_configure('evenrow', background=CC_tbl_evenrow) 
+        tbl_patients.tag_configure('oddrow', background=CC_tbl_oddrow)
+        
+        for heading in table_headings:
+            tbl_patients.heading(heading, text=heading, anchor='center')            
+            tbl_patients.column(heading, anchor='center')
+        
+        # configurazione e posizionamento della treeview
+        tbl_patients.tag_configure("highlight", background=CC_tbl_highlight)
+        tbl_patients.grid(row=1, column=1, sticky='nswe')
+        
+        # eventi della treeview
+        tbl_patients.bind("<Motion>", self.handle_highlight)
+        tbl_patients.bind("<MouseWheel>", self.handle_highlight)
+        tbl_patients.bind("<Leave>", self.on_leave)
+        
+        # riempimento della tabella
+        for i,row in enumerate(table_rows):
+            tbl_patients.insert(parent='', index=tk.END, iid=i, values=row)
+            
+            # assegna lo stile il tag in base alla posizione nella tabella
+            if is_even(i): tbl_patients.item(i, tags=('evenrow'))
+            else: tbl_patients.item(i, tags=('oddrow'))
+            
+        return tbl_patients
+    
     def handle_highlight(self,event,*args):
         # imposta il cursore
         self.configure(cursor="hand2")

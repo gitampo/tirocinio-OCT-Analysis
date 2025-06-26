@@ -4,3 +4,5 @@ CC_black     = '#000000'
 CC_cobalt    = '#0047AB'
 CC_highlight = "#98C3FF"
 CC_selected  = "#1677FF"
+CC_evenrow   = "#D8E8FF"
+CC_oddrow    = "#FFFFFF"

@@ -16,6 +16,7 @@ __CC_white_snow    = "#D6E4F3"
 __CC_light_gray    = '#EEEBE7'
 
 # colori dei frame
+CC_title_bg    = __CC_light_gray 
 CC_frm_default = __CC_white
 
 # colori della topbar
@@ -25,7 +26,7 @@ CC_topbar_text = __CC_white
 # colori delle tabelle
 CC_tbl_text            = __CC_black
 CC_tbl_text_selected   = __CC_black
-CC_tbl_text_highlight  = __CC_black
+CC_tbl_text_highlight  = __CC_white
 CC_tbl_selected        = __CC_light_cobalt
 CC_tbl_highlight       = __CC_light_cobalt
 CC_tbl_evenrow         = __CC_ice_blue

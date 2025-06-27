@@ -20,7 +20,7 @@ class OCTAnalysisApp(tk.Tk):
         self.centered_geometry(SZ_window_w, SZ_window_h)
         
         # barra superiore
-        top_bar = TopBar()
+        top_bar = TopBar(self)
         top_bar.grid(row=0, column=0, sticky='nswe')
         
         # retrieve dei dati
@@ -34,6 +34,8 @@ class OCTAnalysisApp(tk.Tk):
         
         # confugurazione degli eventi
         self.bind('<Escape>', self.close_patient_history)
+        self.bind('<<PatientRowClicked>>', self.open_patient_history)
+        self.bind('<<GoBack>>', self.close_patient_history)
         
         # attributi di classe
         self.top_bar = top_bar
@@ -51,8 +53,12 @@ class OCTAnalysisApp(tk.Tk):
         # posizionamento centrato
         self.geometry(f'{window_w}x{window_h}+{left}+{top}')
         
-    def open_patient_history(self, patient_dict):
+    def open_patient_history(self, event):
         
+        # ottiene i dati condivisi dal tramite evento se ce ne sono
+        patient_dict = event.widget.shared_data
+        if patient_dict is None or (not patient_dict): return
+
         # ottiene lo storico del paziente cercato
         patient_id = patient_dict['id']
         patient_history_headings, patient_history_rows = data.retrieve_one_patient_history(patient_id)
@@ -62,9 +68,16 @@ class OCTAnalysisApp(tk.Tk):
         frm_patient_history.grid(row=1, column=0, sticky='nswe')
         frm_patient_history.tkraise()
         
+        # mostra il tasto per tornare indietro
+        self.top_bar.show_back_button()
+        
+        # salva il nuovo frame nell'istanza
         self.frm_patient_history = frm_patient_history
           
     def close_patient_history(self, event):
+        # nasconde il tasto per tornare indietro
+        self.top_bar.hide_back_button()
+        
         # se c'è un frame aperto di uno storico, lo chiude
         if self.frm_patient_history is not None:
             self.frm_patient_history.destroy()

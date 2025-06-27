@@ -9,24 +9,14 @@ from classes.TableFrame import *
 class PatientsListFrame(TableFrame):
     
     def __init__(self, parent, table_headings, table_rows):        
-        # stile della Treeview
-        stylename = 'PLTreeview'
-        style = ttk.Style()
-        style.theme_use('clam')
-        style.layout(stylename, style.layout('Treeview'))
-        style.configure(stylename, rowheight=SZ_tbl_pat_list_row_h, background='black')
-        style.map(stylename,
-            background=[('active', CC_tbl_highlight), ('selected', CC_tbl_selected)],
-            foreground=[('active', CC_tbl_text_highlight), ('selected', CC_tbl_text_selected)]
-        )
         
         # supercostruttore
         super(PatientsListFrame,self).__init__(
             parent, 
             table_headings, 
             table_rows, 
-            'Lista dei pazienti', 
-            stylename)
+            'Lista dei pazienti'
+        )
         
         # dati da condividere con il parent (inizialmente non ci sono dati)
         self.shared_data = None
@@ -35,17 +25,17 @@ class PatientsListFrame(TableFrame):
         self.tbl.bind('<Button-1>', self.alert_parent)
         
         # configurazione delle colonne
-        self.columnconfigure(0, weight=1)
-        self.columnconfigure(1, weight=2)
-        self.columnconfigure(2, weight=1)
+        self.columnconfigure(1, weight=1)
         
         # configurazione delle righe
         self.rowconfigure(0, weight=1)
         self.rowconfigure(1, weight=10)
-        self.rowconfigure(2, weight=1)
 
     def alert_parent(self, event):
-        
+        region = self.tbl.identify_region(event.x, event.y)
+        if region == "heading": return "break"
+
+
         # ottiene l'id del paziente 
         item_iid = self.tbl.identify_row(event.y)
         item = self.tbl.item(item_iid)

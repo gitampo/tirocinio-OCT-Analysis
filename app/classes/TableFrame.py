@@ -8,12 +8,36 @@ from functools import reduce
 
 class TableFrame(tk.Frame):
     
-    def __init__(self, parent, table_headings, table_rows, title, stylename):
+    def __init__(self, parent, table_headings, table_rows, title, font_specs=(FT_family, FT_h1_size, 'bold')):
         super(TableFrame,self).__init__(bg=CC_frm_default)
+        
+        # istanza dello stile
+        style = ttk.Style()
+        
+        # stile della Treeview
+        stylename = 'Treeview'
+        style.theme_use('clam')
+        style.layout(stylename, style.layout('Treeview'))
+        style.configure(stylename, rowheight=SZ_tbl_pat_list_row_h, fieldbackground=CC_tbl_empty)
+        style.map(stylename,
+            background=[('active', CC_tbl_highlight), ('selected', CC_tbl_selected)],
+            foreground=[('active', CC_tbl_text_highlight), ('selected', CC_tbl_text_selected)]
+        )
+        
+        # stile dell'heading della Treeview
+        style.configure("Treeview.Heading", 
+                foreground=CC_tbl_heading_text,
+                background=CC_tbl_heading_bg,
+                relief='solid',
+                font=(FT_family, FT_size, 'bold'))
+        style.map("Treeview.Heading",
+            background=[('active', CC_tbl_highlight), ('selected', CC_tbl_selected)],
+            foreground=[('active', CC_tbl_text_highlight), ('selected', CC_tbl_text_selected), ('!active !selected', CC_tbl_text)]
+        )
         
         # attributi di classe
         self.frm_container = self.setupContainer(self)
-        self.lbl_title = self.setupTitle(self, title)
+        self.lbl_title = self.setupTitle(self, title, font_specs)
         self.tbl = self.setupTreeview(self.frm_container, table_headings, table_rows, stylename)
         self.scroll_bar = self.setupScrollbar(self.frm_container)
         self.parent = parent
@@ -37,6 +61,7 @@ class TableFrame(tk.Frame):
         
         # configurazione del tag per l'highlight
         tbl.tag_configure("highlight", background=CC_tbl_highlight, foreground=CC_tbl_text_highlight)
+        tbl.tag_configure("text", foreground=CC_tbl_text)
         
         # eventi della treeview
         tbl.bind("<Motion>", self.handle_highlight)
@@ -55,17 +80,19 @@ class TableFrame(tk.Frame):
             tbl.insert(parent='', index=tk.END, iid=i, values=row)
             
             # assegna lo stile il tag in base alla posizione nella tabella
-            if is_even(i): tbl.item(i, tags=('evenrow'))
-            else: tbl.item(i, tags=('oddrow'))
+            if is_even(i): tbl.item(i, tags=('evenrow','text'))
+            else: tbl.item(i, tags=('oddrow','text'))
             
         return tbl
     
-    def setupTitle(self, parent, text):
+    def setupTitle(self, parent, text, font_specs):
         # semplice label che funge da titolo
         lbl_title = tk.Label(parent, 
                              text=text, 
-                             font=(FT_family, FT_h1_size), 
+                             font=font_specs, 
+                             fg = CC_title_fg,
                              bg=CC_title_bg, 
+                             
                              justify='left', 
                              anchor='w', 
                              padx=10, 
@@ -74,8 +101,8 @@ class TableFrame(tk.Frame):
         return lbl_title
 
     def setupScrollbar(self, parent):
-        scroll_bar = tk.Scrollbar(parent, orient='vertical', command=self.tbl.yview)
-        scroll_bar.pack(side='left', fill='y')
+        scroll_bar = tk.Scrollbar(parent, orient='vertical', troughcolor=CC_tbl_scroll_trough, bg=CC_tbl_scroll, width=SZ_tbl_scroll_w, command=self.tbl.yview)
+        scroll_bar.pack(side='left', fill='both')
         self.tbl.configure(yscrollcommand=scroll_bar.set)
         self.tbl.bind('<MouseWheel>', self.handle_scroll(type='both'))
         self.tbl.bind('<Button-4>', self.handle_scroll(type='up'))
@@ -84,14 +111,18 @@ class TableFrame(tk.Frame):
         return scroll_bar
 
     def resize_columns(self, event):
+        # ottiene la dimensione della tabella 
         tot_width = self.tbl.winfo_width()        
+        
+        # ottiene la lunghezza totale di tutti i nomi delle colonne
         tot_len = len( reduce(lambda concat, string: concat+string, self.tbl['columns']) )
                         
-        print(self.title)
+        # per ogni colonna calcola la dimensione 
         for col in self.tbl['columns']:
+            # rapporto lunghezza nome colonna / lunghezza totale
             len_ratio = len(col)/tot_len
+            # grandezza della colonna in percentuale
             col_width = int(len_ratio * tot_width)
-            print(col, len_ratio)
             self.tbl.column(col, width=col_width)
 
     def handle_scroll(self, type):

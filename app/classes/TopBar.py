@@ -15,7 +15,11 @@ class TopBar(tk.Frame):
         lbl_username.pack(side='right')
         
         # pulsante per tornare indietro
-        self.btn_back = tk.Button(self, text='Indietro (Esc)', command=lambda: self.btn_back.event_generate('<<GoBack>>'))
+        self.btn_back = tk.Button(self, 
+                                  text='Indietro (Esc)', 
+                                  fg=CC_topbar_btn_back_fg,
+                                  bg=CC_topbar_btn_back_bg,
+                                  command=lambda: self.btn_back.event_generate('<<GoBack>>'))
         
     def show_back_button(self):
         self.btn_back.pack(side='left')

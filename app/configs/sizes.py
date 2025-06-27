@@ -7,3 +7,4 @@ SZ_min_window_h = 500
 SZ_topbar_h = 50
 SZ_tbl_pat_list_row_h = 30 # altezza righe (tabella lista pazienti)
 SZ_tbl_pat_hist_row_h = 40 # altezza righe (tabella storico paziente)
+SZ_tbl_scroll_w = 18

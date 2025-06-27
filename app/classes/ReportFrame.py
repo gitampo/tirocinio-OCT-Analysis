@@ -20,14 +20,14 @@ class ReportFrame(tk.Frame):
         
         # immagine dell'oct
         image = Image.open(report_image) 
-        image = image.resize((200, 200))
+        image = image.resize((SZ_window_w, SZ_window_h-SZ_topbar_h))
         photo = ImageTk.PhotoImage(image)
 
         # istanzia il Canvas dove risiederà l'immagine
         canvas = tk.Canvas(self, width=image.width, height=image.height)
         canvas.grid(row=0, column=0, sticky='nswe')
-        print(canvas['height'])
-
+        
+        
         # aggiunge l'immagine al Canvas
         canvas.create_image(0, 0, image=photo, anchor='nw')
         canvas.image = photo # per evitare la perdita a causa del G.C.

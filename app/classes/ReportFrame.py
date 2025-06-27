@@ -6,25 +6,31 @@ from configs.fonts import *
 from configs.anchors import *
 from util.funs import *
 from classes.TableFrame import *
+from PIL import Image, ImageTk
 
-class PatientsListFrame(TableFrame):
+class ReportFrame(tk.Frame):
     
-    def __init__(self, parent, table_headings, table_rows):        
+    def __init__(self, parent, report_image):        
         
         # supercostruttore
-        super(PatientsListFrame,self).__init__(
-            parent, 
-            table_headings, 
-            table_rows, 
-            'Lista dei pazienti',
-            row_anchors_dict=AC_patients_list
-        )
+        super(ReportFrame,self).__init__()
         
         # dati da condividere con il parent (inizialmente non ci sono dati)
         self.shared_data = None
         
-        # associa l'apertura dello storico del paziente, all'evento del click sulla riga
-        self.tbl.bind('<Button-1>', self.alert_parent)
+        # immagine dell'oct
+        image = Image.open(report_image) 
+        image = image.resize((200, 200))
+        photo = ImageTk.PhotoImage(image)
+
+        # istanzia il Canvas dove risiederà l'immagine
+        canvas = tk.Canvas(self, width=image.width, height=image.height)
+        canvas.grid(row=0, column=0, sticky='nswe')
+        print(canvas['height'])
+
+        # aggiunge l'immagine al Canvas
+        canvas.create_image(0, 0, image=photo, anchor='nw')
+        canvas.image = photo # per evitare la perdita a causa del G.C.
         
         # configurazione delle colonne
         self.columnconfigure(1, weight=1)

@@ -8,7 +8,7 @@ from functools import reduce
 
 class TableFrame(tk.Frame):
     
-    def __init__(self, parent, table_headings, table_rows, title, font_specs=(FT_family, FT_h1_size, 'bold')):
+    def __init__(self, parent, table_headings, table_rows, title, font_specs=(FT_family, FT_h1_size, 'bold'), row_anchors_dict=None):
         super(TableFrame,self).__init__(bg=CC_frm_default)
         
         # istanza dello stile
@@ -36,13 +36,16 @@ class TableFrame(tk.Frame):
         )
         
         # attributi di classe
+        self.parent = parent
+        self.title = title
+        self.last_iid = None
+        self.row_anchors_dict = row_anchors_dict
+        
+        # setup delle dei widget
         self.frm_container = self.setupContainer(self)
         self.lbl_title = self.setupTitle(self, title, font_specs)
         self.tbl = self.setupTreeview(self.frm_container, table_headings, table_rows, stylename)
         self.scroll_bar = self.setupScrollbar(self.frm_container)
-        self.parent = parent
-        self.last_iid = None
-        self.title = title
 
     def setupContainer(self, parent):
         # contenitore di tabella e scrollbar
@@ -72,11 +75,17 @@ class TableFrame(tk.Frame):
         
         # caricamento delle intestazioni
         for heading in table_headings:
+            # se sono forniti degli allineamenti per le righe, li usa
+            try: row_anchor = self.row_anchors_dict[heading]
+            except: row_anchor='center'
+            
+            # crea intestazioni e colonne
             tbl.heading(heading, text=heading.upper(), anchor='center')            
-            tbl.column(heading, stretch=True, anchor='center')
+            tbl.column(heading, stretch=True, anchor=row_anchor)
         
         # riempimento della tabella
         for i,row in enumerate(table_rows):
+            # inserisce il valore alla fine della tabella
             tbl.insert(parent='', index=tk.END, iid=i, values=row)
             
             # assegna lo stile il tag in base alla posizione nella tabella
@@ -92,7 +101,6 @@ class TableFrame(tk.Frame):
                              font=font_specs, 
                              fg = CC_title_fg,
                              bg=CC_title_bg, 
-                             
                              justify='left', 
                              anchor='w', 
                              padx=10, 

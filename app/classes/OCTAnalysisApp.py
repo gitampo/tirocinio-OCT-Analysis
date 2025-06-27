@@ -4,6 +4,7 @@ import tkinter.font as tkFont
 from classes.TopBar import *
 from classes.PatientsListFrame import *
 from classes.PatientHistoryFrame import *
+from classes.ReportFrame import *
 from configs.colors import *
 from configs.fonts import *
 import util.data as data
@@ -33,14 +34,15 @@ class OCTAnalysisApp(tk.Tk):
         frm_patients.grid(row=1, column=0, sticky='nswe')
         
         # confugurazione degli eventi
-        self.bind('<Escape>', self.close_patient_history)
         self.bind('<<PatientRowClicked>>', self.open_patient_history)
-        self.bind('<<GoBack>>', self.close_patient_history)
+        self.bind('<<ReportRowClicked>>', self.open_report)
+        self.bind('<<GoBack>>', self.close_active_frame)
+        self.bind('<Escape>', self.close_active_frame)
         
         # attributi di classe
         self.top_bar = top_bar
         self.frm_patients = frm_patients
-        self.frm_patient_history = None
+        self.frm_opened_list = []
     
     def centered_geometry(self,window_w, window_h):
         screen_w = self.winfo_screenwidth()
@@ -54,8 +56,7 @@ class OCTAnalysisApp(tk.Tk):
         self.geometry(f'{window_w}x{window_h}+{left}+{top}')
         
     def open_patient_history(self, event):
-        
-        # ottiene i dati condivisi dal tramite evento se ce ne sono
+        # ottiene i dati condivisi tramite evento se ce ne sono
         patient_dict = event.widget.shared_data
         if patient_dict is None or (not patient_dict): return
 
@@ -71,15 +72,37 @@ class OCTAnalysisApp(tk.Tk):
         # mostra il tasto per tornare indietro
         self.top_bar.show_back_button()
         
-        # salva il nuovo frame nell'istanza
-        self.frm_patient_history = frm_patient_history
+        # aggiunge il nuovo frame aperto in cima alla lista dei frame aperti
+        self.frm_opened_list.insert(0, frm_patient_history)
           
-    def close_patient_history(self, event):
-        # nasconde il tasto per tornare indietro
-        self.top_bar.hide_back_button()
+    def open_report(self, event):
+        # ottiene i dati condivisi tramite evento se ce ne sono
+        report_dict = event.widget.shared_data
+        if report_dict is None or (not report_dict): return
+
+        # ottiene lo storico del paziente cercato
+        report_img = report_dict['oct']
         
-        # se c'è un frame aperto di uno storico, lo chiude
-        if self.frm_patient_history is not None:
-            self.frm_patient_history.destroy()
-        # resetta l'attributo d'istanza
-        self.frm_patient_history = None
+        # istanzia il frame del report selezionato e lo porta in primo piano
+        frm_report = ReportFrame(self, report_img)
+        frm_report.grid(row=1, column=0, sticky='nswe')
+        frm_report.tkraise()
+          
+        # mostra il tasto per tornare indietro
+        self.top_bar.show_back_button()
+        
+        # aggiunge il nuovo frame aperto in cima alla lista dei frame aperti
+        self.frm_opened_list.insert(0, frm_report)
+          
+    def close_active_frame(self, event):
+       
+        # se c'è un frame aperto, lo chiude
+        if len(self.frm_opened_list)!=0:
+            top_frame = self.frm_opened_list[0]
+            top_frame.destroy()
+            self.frm_opened_list.remove(top_frame)
+            
+        # se non ci sono più ulteriori frame aperti, nasconde il pulsante per tornare indietro
+        if len(self.frm_opened_list)==0:
+            # nasconde il tasto per tornare indietro
+            self.top_bar.hide_back_button()

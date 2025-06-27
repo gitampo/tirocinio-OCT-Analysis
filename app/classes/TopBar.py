@@ -1,6 +1,7 @@
 import tkinter as tk
 from configs.colors import *
 from configs.sizes import *
+from configs.fonts import *
 
 class TopBar(tk.Frame):
     
@@ -10,9 +11,10 @@ class TopBar(tk.Frame):
         # impedisce al 'pack geometry manager' di adattare la dimensione della topbar al contenuto
         self.pack_propagate(False)
         
-        # Nome dell'utente registrato
-        lbl_username = tk.Label(self, text='Dott. Mario Rossi', bg=CC_topbar, fg=CC_topbar_text) # TODO vedi se cambiare il text
-        lbl_username.pack(side='right')
+        lbl_user = tk.Label(self, text='Utente:', font=('',FT_size,'bold'), bg=CC_topbar, fg=CC_topbar_text) # TODO vedi se cambiare il text
+        lbl_name = tk.Label(self, text='Dott. Mario Rossi', bg=CC_topbar, fg=CC_topbar_text) # TODO vedi se cambiare il text
+        lbl_name.pack(side='right')
+        lbl_user.pack(side='right')
         
         # pulsante per tornare indietro
         self.btn_back = tk.Button(self, 

@@ -14,9 +14,10 @@ def retrieve_one_patient_history(patient_id):
     # ottiene il data frame dal file csv
     df = pd.read_csv('./patients_history.csv')
     df = df[df['id_paziente']==patient_id]
+    df.sort_values(by='data', ascending=True)
     
     # ottiene intestazioni e righe legate solo paziente cercato
-    headings = tuple((heading for i, heading in enumerate(df.columns) if i!=0)) # rimuove l'intestazione 'id_paziente'
-    rows = list(tuple(attr for i, attr in enumerate(tuple(row)) if i!=0) for row in df.values) # rimuove il campo 'id_paziente'
+    headings = tuple(heading for i, heading in enumerate(df.columns))
+    rows = list(tuple(attr for i, attr in enumerate(tuple(row))) for row in df.values)
     
     return headings, rows

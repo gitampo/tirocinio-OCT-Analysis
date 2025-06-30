@@ -8,7 +8,14 @@ from functools import reduce
 
 class TableFrame(tk.Frame):
     
-    def __init__(self, parent, table_headings, table_rows, title, font_specs=(FT_family, FT_h1_size, 'bold'), row_anchors_dict=None):
+    def __init__(self, 
+                 parent, 
+                 table_headings, 
+                 table_rows, 
+                 title, 
+                 font_specs=(FT_family, FT_h1_size, 'bold'), 
+                 columns_anchors_dict=None, 
+                 columns_sizes_dict=None):
         super(TableFrame,self).__init__(bg=CC_frm_default)
         
         # istanza dello stile
@@ -39,7 +46,8 @@ class TableFrame(tk.Frame):
         self.parent = parent
         self.title = title
         self.last_iid = None
-        self.row_anchors_dict = row_anchors_dict
+        self.columns_anchors_dict = columns_anchors_dict
+        self.columns_sizes_dict = columns_sizes_dict
         
         # setup delle dei widget
         self.frm_container = self.setupContainer(self)
@@ -75,13 +83,13 @@ class TableFrame(tk.Frame):
         
         # caricamento delle intestazioni
         for heading in table_headings:
-            # se sono forniti degli allineamenti per le righe, li usa
-            try: row_anchor = self.row_anchors_dict[heading]
-            except: row_anchor='center'
+            # se sono forniti degli allineamenti per le colonne, li usa
+            try: column_anchor = self.columns_anchors_dict[heading]
+            except: column_anchor='center'
             
             # crea intestazioni e colonne
             tbl.heading(heading, text=heading.upper(), anchor='center')            
-            tbl.column(heading, stretch=True, anchor=row_anchor)
+            tbl.column(heading, stretch=True, anchor=column_anchor)
         
         # riempimento della tabella
         for i,row in enumerate(table_rows):
@@ -119,18 +127,27 @@ class TableFrame(tk.Frame):
         return scroll_bar
 
     def resize_columns(self, event):
+        
+        if self.columns_sizes_dict is None: return
+        
+        # somma le percentuli
+        perc_sum = reduce(lambda x,y: x+y,[x for _,x in self.columns_sizes_dict.items()])
+        if perc_sum>1: return # controllo sulla correttezza delle dimensioni
+        
+        # numero di colonne senza dimensione
+        remaining_columns = len(self.tbl['columns']) - len(self.columns_sizes_dict)
+        
+        # calcolo della lista di ratio-sizes per ogni colonna
+        remaining_sizes_dict = {col:((1-perc_sum)/remaining_columns) for col in self.tbl['columns'] if col not in self.columns_sizes_dict.keys()}
+        columns_ratio_sizes = self.columns_sizes_dict | remaining_sizes_dict
+        
         # ottiene la dimensione della tabella 
         tot_width = self.tbl.winfo_width()        
-        
-        # ottiene la lunghezza totale di tutti i nomi delle colonne
-        tot_len = len( reduce(lambda concat, string: concat+string, self.tbl['columns']) )
                         
         # per ogni colonna calcola la dimensione 
         for col in self.tbl['columns']:
-            # rapporto lunghezza nome colonna / lunghezza totale
-            len_ratio = len(col)/tot_len
-            # grandezza della colonna in percentuale
-            col_width = int(len_ratio * tot_width)
+            # calocla la grandezza della colonna in percentuale
+            col_width = int(columns_ratio_sizes[col] * tot_width)
             self.tbl.column(col, width=col_width)
 
     def handle_scroll(self, type):

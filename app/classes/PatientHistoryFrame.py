@@ -3,7 +3,7 @@ from tkinter import ttk
 from configs.colors import *
 from configs.sizes import *
 from configs.fonts import *
-from configs.anchors import *
+from configs.tables import *
 from util.funs import *
 from classes.TableFrame import *
 
@@ -22,7 +22,8 @@ class PatientHistoryFrame(TableFrame):
             [t[1:] for t in table_rows], 
             f'Storico di "{nome} {cognome}"', 
             font_specs=(FT_family, FT_h2_size, 'bold'),
-            row_anchors_dict=AC_patient_history
+            columns_anchors_dict=AC_patient_history,
+            columns_sizes_dict=CS_patient_history
         )
         
         # dati da condividere con il parent (inizialmente non ci sono dati)

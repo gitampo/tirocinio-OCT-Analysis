@@ -3,7 +3,7 @@ from tkinter import ttk
 from configs.colors import *
 from configs.sizes import *
 from configs.fonts import *
-from configs.anchors import *
+from configs.tables import *
 from util.funs import *
 from classes.TableFrame import *
 
@@ -17,7 +17,8 @@ class PatientsListFrame(TableFrame):
             table_headings, 
             table_rows, 
             'Lista dei pazienti',
-            row_anchors_dict=AC_patients_list
+            columns_anchors_dict=AC_patients_list,
+            columns_sizes_dict=CS_patients_list
         )
         
         # dati da condividere con il parent (inizialmente non ci sono dati)

@@ -65,3 +65,6 @@ CC_tbl_highlight       = __CC_primary
 # colori per la scroolbar nelle tabelle
 CC_tbl_scroll          = __CC_blue_700
 CC_tbl_scroll_trough   = __CC_blue_300
+
+# canvas del report
+CC_canvas_bg = __CC_background

@@ -10,3 +10,15 @@ AC_patients_list = {
 AC_patient_history = {
     'descrizione':'w'  
 }
+
+# se si inseriscono le dimensioni di tutte le colonne, la somma deve ammontare a 1
+CS_patients_list = { 
+    'id': 0.15,
+    'sesso': 0.15,
+    'età': 0.15
+}
+
+# se si inseriscono le dimensioni di tutte le colonne, la somma deve ammontare a 1
+CS_patient_history = { 
+    'descrizione':0.5 
+}

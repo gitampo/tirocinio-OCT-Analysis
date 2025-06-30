@@ -74,3 +74,13 @@ def is_number(n):
         return False
     
     return True
+
+def centered_position(container_size, contained_size):
+    container_w, container_h = container_size
+    contained_w, contained_h = contained_size
+    
+    # calcolo della posizione del contenuto
+    left = (container_w-contained_w)//2
+    top  = (container_h-contained_h)//2
+    
+    return left, top

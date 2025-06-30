@@ -48,9 +48,8 @@ class OCTAnalysisApp(tk.Tk):
         screen_w = self.winfo_screenwidth()
         screen_h = self.winfo_screenheight()
         
-        # calcolo della posizione della finestra
-        left = (screen_w-window_w)//2
-        top  = (screen_h-window_h)//2
+        # calocla la posizione centrata
+        left, top = centered_position((screen_w, screen_h), (window_w, window_h))
         
         # posizionamento centrato
         self.geometry(f'{window_w}x{window_h}+{left}+{top}')

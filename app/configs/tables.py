@@ -20,5 +20,5 @@ CS_patients_list = {
 
 # se si inseriscono le dimensioni di tutte le colonne, la somma deve ammontare a 1
 CS_patient_history = { 
-    'descrizione':0.5 
+    'descrizione':0.5
 }

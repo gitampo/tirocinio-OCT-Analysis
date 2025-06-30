@@ -28,43 +28,61 @@ __CC_blue_400   = "#3A4F7A"   # blu polveroso
 __CC_blue_300   = "#4C66A4"   # blu medio-freddo
 __CC_blue_200   = "#5D7BBF"   # blu freddo per elementi attivi
 __CC_blue_100   = "#7A97D9"   # blu pastello chiaro
+__CC_blue_075   = "#87A3E0"   # azzurro pastello
 __CC_blue_050   = "#AFC7F3"   # azzurro molto chiaro per evidenziazioni
+
 
 # Colori speciali
 __CC_primary     = __CC_blue_900
 __CC_background  = __CC_blue_800
 __CC_text        = __CC_white
 
-# colori dei frame
+# frame
 CC_title_fg    = __CC_text
 CC_title_bg    = __CC_background
 CC_frm_default = __CC_background
 
-# colori della topbar
+# topbar
 CC_topbar             = __CC_primary
 CC_topbar_text        = __CC_text
 CC_topbar_btn_back_fg = __CC_text
 CC_topbar_btn_back_bg = __CC_background
 
-# colori dei testi delle tabelle
+# testi delle tabelle
 CC_tbl_text            = __CC_text
 CC_tbl_text_selected   = __CC_text
 CC_tbl_heading_text    = __CC_text
 CC_tbl_text_highlight  = __CC_text
 
-# colori di background delle tabelle
+# background delle tabelle
 CC_tbl_heading_bg      = __CC_blue_700
 CC_tbl_empty           = __CC_blue_700
 CC_tbl_evenrow         = __CC_blue_400
 CC_tbl_oddrow          = __CC_blue_300
 
-# colori per interazioni nelle tabelle
+# interazioni nelle tabelle
 CC_tbl_selected        = __CC_primary
 CC_tbl_highlight       = __CC_primary
 
-# colori per la scroolbar nelle tabelle
+# scroolbar nelle tabelle
 CC_tbl_scroll          = __CC_blue_700
 CC_tbl_scroll_trough   = __CC_blue_300
 
 # canvas del report
 CC_canvas_bg = __CC_background
+
+# info frame
+CC_frm_info_text = __CC_text
+CC_frm_info = __CC_blue_500
+
+# pulsanti
+CC_btn_text_primary = __CC_black
+CC_btn_primary = __CC_blue_050
+
+# dialog
+CC_dlg = __CC_blue_050
+CC_dlg_field = __CC_blue_075
+CC_btn_image_fg = __CC_white
+CC_btn_image_bg = __CC_blue_200
+CC_btn_submit_fg = __CC_black
+CC_btn_submit_bg = __CC_white

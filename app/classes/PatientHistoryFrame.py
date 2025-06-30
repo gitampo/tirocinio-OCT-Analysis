@@ -4,40 +4,53 @@ from configs.colors import *
 from configs.sizes import *
 from configs.fonts import *
 from configs.tables import *
-from util.funs import *
 from classes.TableFrame import *
+from classes.AddReportDialog import *
+from util.funs import *
 
 class PatientHistoryFrame(TableFrame):
     
     def __init__(self, parent, table_headings, table_rows, patient_dict):
        
-        # dati del paziente
-        nome = patient_dict['nome']
-        cognome = patient_dict['cognome']
         
+        # rimuove le colonne indesiderate
+        unwanted_headings = ('id_paziente','oct')
+        new_table_headings, new_table_rows = remove_headings(unwanted_headings, table_headings, table_rows)
+                
         # supercostruttore
         super(PatientHistoryFrame,self).__init__(
             parent, 
-            table_headings[1:], 
-            [t[1:] for t in table_rows], 
-            f'Storico di "{nome} {cognome}"', 
+            new_table_headings,
+            new_table_rows,
+            None, 
+            row=3, column=0,
             font_specs=(FT_family, FT_h2_size, 'bold'),
             columns_anchors_dict=AC_patient_history,
             columns_sizes_dict=CS_patient_history
         )
         
+        # dati del paziente
+        nome = patient_dict['nome']
+        cognome = patient_dict['cognome']
+        
+        self.table_headings = table_headings
+        self.table_rows = table_rows
+        self.dlg_add_report = None
+        
         # dati da condividere con il parent (inizialmente non ci sono dati)
         self.shared_data = None
-        
+                
+        # imposta i widget
+        self.setupFrameTitle(self, f'Storico di "{nome} {cognome}"', row=0, column=0)
+        self.setupInfoFrame(self, patient_dict, row=1, column=0, )
+        self.setupAddReportButton(self, row=2, column=0)
+
         # associa l'apertura dello storico del paziente, all'evento del click sulla riga
         self.tbl.bind('<Button-1>', self.alert_parent)
         
-        # configurazione delle colonne
-        self.columnconfigure(1, weight=1)
-        
-        # configurazione delle righe
-        self.rowconfigure(0, weight=1)
-        self.rowconfigure(1, weight=10)
+        # configurazione di righe e colonne
+        self.columnconfigure(0, weight=1)
+        self.rowconfigure(3, weight=1)
         
     def alert_parent(self, event):
         # se l'utente preme sull'heading, non deve fare niente
@@ -46,13 +59,99 @@ class PatientHistoryFrame(TableFrame):
 
         # ottiene l'item della riga premuta
         item_iid = self.tbl.identify_row(event.y)
-        item = self.tbl.item(item_iid)
+        if item_iid is None or item_iid == '': return
 
         # dizionario del report composto da chiavi e valori (chiavi=headings, valori=valori dell'item)
-        report_dict = dict(zip(self.tbl['columns'], item['values']))
+        report_dict = dict(zip(self.table_headings, self.table_rows[int(item_iid)]))
     
         # dati condivisi con il parent
         self.shared_data = report_dict
     
         # genera un evento visibile dal padre e gli passa i dati dello storico cliccato
         self.event_generate('<<ReportRowClicked>>')
+        
+    def setupFrameTitle(self, parent, text, row=0, column=0, font_specs=(FT_family, FT_h1_size, 'bold')):
+        # semplice label che funge da titolo
+        lbl_title = tk.Label(parent, 
+                             text=text, 
+                             font=font_specs, 
+                             fg = CC_title_fg,
+                             bg=CC_title_bg, 
+                             justify='left', 
+                             anchor='w', 
+                             padx=10, 
+                             pady=10)
+        lbl_title.grid(row=row, column=column, sticky='nwe')
+        return lbl_title
+    
+    def setupInfoFrame(self, parent, patient_dict, row=0, column=0,):
+        # frame di padding/di background
+        frm_container = tk.Frame(parent, 
+                             bg=CC_frm_default, 
+                             padx=20, 
+                             pady=10)
+        frm_container.grid(row=row, column=column, sticky='nswe')
+        
+        # frame delld info del paziente
+        frm_info = tk.Frame(frm_container, 
+                             bg=CC_frm_info,
+                             padx=20, 
+                             pady=10)
+        frm_info.pack(fill='both')
+        
+        font_specs = (FT_family, FT_size, 'bold')
+        
+        lbl_tags = [
+          tk.Label(frm_info,pady=2, fg=CC_frm_info_text, bg=CC_frm_info, font=font_specs, anchor='w',text='Id:')
+         ,tk.Label(frm_info,pady=2, fg=CC_frm_info_text, bg=CC_frm_info, font=font_specs, anchor='w',text='Nome:')
+         ,tk.Label(frm_info,pady=2, fg=CC_frm_info_text, bg=CC_frm_info, font=font_specs, anchor='w',text='Cognome:')
+         ,tk.Label(frm_info,pady=2, fg=CC_frm_info_text, bg=CC_frm_info, font=font_specs, anchor='w',text='Sesso:')
+         ,tk.Label(frm_info,pady=2, fg=CC_frm_info_text, bg=CC_frm_info, font=font_specs, anchor='w',text='Età:')
+        ]
+        
+        lbl_values = [
+          tk.Label(frm_info, pady=2, fg=CC_frm_info_text, bg=CC_frm_info, anchor='w',text=f'{patient_dict["id"]}')
+         ,tk.Label(frm_info, pady=2, fg=CC_frm_info_text, bg=CC_frm_info, anchor='w',text=f'{patient_dict["nome"]}')
+         ,tk.Label(frm_info, pady=2, fg=CC_frm_info_text, bg=CC_frm_info, anchor='w',text=f'{patient_dict["cognome"]}')
+         ,tk.Label(frm_info, pady=2, fg=CC_frm_info_text, bg=CC_frm_info, anchor='w',text=f'{patient_dict["sesso"]}')
+         ,tk.Label(frm_info, pady=2, fg=CC_frm_info_text, bg=CC_frm_info, anchor='w',text=f'{patient_dict["età"]}')
+        ] 
+        
+        pad_l = 0
+        for lbl_tag, lbl_val in zip(lbl_tags,lbl_values):     
+            lbl_tag.pack(padx=(pad_l,0), side='left')  
+            lbl_val.pack(side='left')
+            pad_l = 30
+            
+        return frm_info
+    
+    def setupAddReportButton(self, parent, row=0, column=0):
+        # frame di padding/di background
+        frm_container = tk.Frame(parent, 
+                             bg=CC_frm_default,
+                             padx=20)
+        frm_container.grid(row=row, column=column, sticky='nswe', pady=(0,10))
+        
+        # pulsante di aggiunta
+        btn_add_report = tk.Button(frm_container, 
+                                   text='Aggiungi Report +', 
+                                   width=30, 
+                                   fg=CC_btn_text_primary ,
+                                   bg=CC_btn_primary,
+                                   command=self.add_report)
+        btn_add_report.pack(side='right')
+        
+    def add_report(self):
+        self.close_subwindows() # chiude il dialog, se era già aperto
+        
+        # crea un nuovo dialog
+        dlg_add_report = AddReportDialog(self)
+              
+        # salva il riferimento al dialog
+        self.dlg_add_report = dlg_add_report
+        
+    def close_subwindows(self):
+        # se era già aperto un dialog, lo chiude
+        if self.dlg_add_report is not None:
+            self.dlg_add_report.destroy()
+            self.dlg_add_report = None

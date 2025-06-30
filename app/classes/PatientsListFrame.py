@@ -17,6 +17,7 @@ class PatientsListFrame(TableFrame):
             table_headings, 
             table_rows, 
             'Lista dei pazienti',
+            row=0, column=0,
             columns_anchors_dict=AC_patients_list,
             columns_sizes_dict=CS_patients_list
         )
@@ -27,12 +28,9 @@ class PatientsListFrame(TableFrame):
         # associa l'apertura dello storico del paziente, all'evento del click sulla riga
         self.tbl.bind('<Button-1>', self.alert_parent)
         
-        # configurazione delle colonne
-        self.columnconfigure(1, weight=1)
-        
-        # configurazione delle righe
+        # configurazione di righe e colonne
+        self.columnconfigure(0, weight=1)
         self.rowconfigure(0, weight=1)
-        self.rowconfigure(1, weight=10)
 
     def alert_parent(self, event):
         # se l'utente preme sull'heading, non deve fare niente

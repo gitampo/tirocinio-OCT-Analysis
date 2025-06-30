@@ -12,7 +12,8 @@ class TableFrame(tk.Frame):
                  parent, 
                  table_headings, 
                  table_rows, 
-                 title, 
+                 tbl_title, 
+                 row=0, column=0,
                  font_specs=(FT_family, FT_h1_size, 'bold'), 
                  columns_anchors_dict=None, 
                  columns_sizes_dict=None):
@@ -44,21 +45,21 @@ class TableFrame(tk.Frame):
         
         # attributi di classe
         self.parent = parent
-        self.title = title
+        self.title = tbl_title
         self.last_iid = None
         self.columns_anchors_dict = columns_anchors_dict
         self.columns_sizes_dict = columns_sizes_dict
         
         # setup delle dei widget
-        self.frm_container = self.setupContainer(self)
-        self.lbl_title = self.setupTitle(self, title, font_specs)
+        self.frm_container = self.setupContainer(self, row, column)
+        self.lbl_title = self.setupTreeviewTitle(self.frm_container, tbl_title, font_specs)
         self.tbl = self.setupTreeview(self.frm_container, table_headings, table_rows, stylename)
         self.scroll_bar = self.setupScrollbar(self.frm_container)
 
-    def setupContainer(self, parent):
+    def setupContainer(self, parent, row, column):
         # contenitore di tabella e scrollbar
         frm_container = tk.Frame(self)
-        frm_container.grid(row=1, column=1, sticky='nswe')
+        frm_container.grid(row=row, column=column, sticky='nswe')
         return frm_container
 
     def setupTreeview(self, parent, table_headings, table_rows, stylename):
@@ -102,7 +103,9 @@ class TableFrame(tk.Frame):
             
         return tbl
     
-    def setupTitle(self, parent, text, font_specs):
+    def setupTreeviewTitle(self, parent, text, font_specs):
+        if text is None: return None
+        
         # semplice label che funge da titolo
         lbl_title = tk.Label(parent, 
                              text=text, 
@@ -113,7 +116,7 @@ class TableFrame(tk.Frame):
                              anchor='w', 
                              padx=10, 
                              pady=10)
-        lbl_title.grid(row=0, column=1, sticky='swe')
+        lbl_title.pack(side='top', fill='x')
         return lbl_title
 
     def setupScrollbar(self, parent):
@@ -140,7 +143,7 @@ class TableFrame(tk.Frame):
         # calcolo della lista di ratio-sizes per ogni colonna
         remaining_sizes_dict = {col:((1-perc_sum)/remaining_columns) for col in self.tbl['columns'] if col not in self.columns_sizes_dict.keys()}
         columns_ratio_sizes = self.columns_sizes_dict | remaining_sizes_dict
-        
+                
         # ottiene la dimensione della tabella 
         tot_width = self.tbl.winfo_width()        
                         

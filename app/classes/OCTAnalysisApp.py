@@ -45,10 +45,11 @@ class OCTAnalysisApp(tk.Tk):
         self.frm_opened_list = []
     
     def centered_geometry(self,window_w, window_h):
+        # dimensioni dello schermo
         screen_w = self.winfo_screenwidth()
         screen_h = self.winfo_screenheight()
         
-        # calocla la posizione centrata
+        # calcola la posizione centrata
         left, top = centered_position((screen_w, screen_h), (window_w, window_h))
         
         # posizionamento centrato
@@ -99,6 +100,7 @@ class OCTAnalysisApp(tk.Tk):
         if len(self.frm_opened_list)!=0:
             top_frame = self.frm_opened_list[0]
             top_frame.destroy()
+            if hasfunc(top_frame, 'close_subwindows'): top_frame.close_subwindows()
             self.frm_opened_list.remove(top_frame)
             
         # se non ci sono più ulteriori frame aperti, nasconde il pulsante per tornare indietro

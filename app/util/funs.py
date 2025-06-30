@@ -84,3 +84,14 @@ def centered_position(container_size, contained_size):
     top  = (container_h-contained_h)//2
     
     return left, top
+
+def remove_headings(unwanted_headings, headings, rows):
+        unwanted_idexes = [headings.index(h) for h in headings if h in unwanted_headings]
+        
+        new_headings = tuple(h for h in headings if h not in unwanted_headings)
+        new_rows = [tuple(value for i, value in enumerate(row) if i not in unwanted_idexes) for row in rows]
+        
+        return new_headings, new_rows
+    
+def hasfunc(item, func):
+    return hasattr(item, func) and callable(eval(f'item.{func}'))

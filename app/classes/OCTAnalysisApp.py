@@ -36,6 +36,7 @@ class OCTAnalysisApp(tk.Tk):
         # confugurazione degli eventi
         self.bind('<<PatientRowClicked>>', self.open_patient_history)
         self.bind('<<ReportRowClicked>>', self.open_report)
+        self.bind('<<ReportRowAdded>>', self.refresh_patient_history)
         self.bind('<<GoBack>>', self.close_active_frame)
         self.bind('<Escape>', self.close_active_frame)
         
@@ -94,16 +95,20 @@ class OCTAnalysisApp(tk.Tk):
         # aggiunge il nuovo frame aperto in cima alla lista dei frame aperti
         self.frm_opened_list.insert(0, frm_report)
           
-    def close_active_frame(self, event):
+    def close_active_frame(self, event=None):
        
         # se c'è un frame aperto, lo chiude
         if len(self.frm_opened_list)!=0:
             top_frame = self.frm_opened_list[0]
             top_frame.destroy()
-            if hasfunc(top_frame, 'close_subwindows'): top_frame.close_subwindows()
+            if hasfunc(top_frame, 'close_toplevels'): top_frame.close_toplevels()
             self.frm_opened_list.remove(top_frame)
             
         # se non ci sono più ulteriori frame aperti, nasconde il pulsante per tornare indietro
         if len(self.frm_opened_list)==0:
             # nasconde il tasto per tornare indietro
             self.top_bar.hide_back_button()
+            
+    def refresh_patient_history(self, event):
+        self.close_active_frame()
+        self.open_patient_history(event)

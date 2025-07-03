@@ -33,6 +33,7 @@ class PatientHistoryFrame(TableFrame):
         nome = patient_dict['nome']
         cognome = patient_dict['cognome']
         
+        self.patient_dict = patient_dict
         self.table_headings = table_headings
         self.table_rows = table_rows
         self.dlg_add_report = None
@@ -46,13 +47,18 @@ class PatientHistoryFrame(TableFrame):
         self.setupAddReportButton(self, row=2, column=0)
 
         # associa l'apertura dello storico del paziente, all'evento del click sulla riga
-        self.tbl.bind('<Button-1>', self.alert_parent)
+        self.tbl.bind('<Button-1>', self.alert_parent_of_rowclick)
+        self.bind('<<AddDialogSuccess>>', self.alert_parent_of_rowadd)
         
         # configurazione di righe e colonne
         self.columnconfigure(0, weight=1)
         self.rowconfigure(3, weight=1)
         
-    def alert_parent(self, event):
+    def alert_parent_of_rowadd(self, event):# genera un evento visibile dal padre e gli passa i dati dello storico cliccato
+        self.shared_data = self.patient_dict
+        self.event_generate('<<ReportRowAdded>>')
+        
+    def alert_parent_of_rowclick(self, event):
         # se l'utente preme sull'heading, non deve fare niente
         region = self.tbl.identify_region(event.x, event.y)
         if region == "heading": return "break"
@@ -142,15 +148,15 @@ class PatientHistoryFrame(TableFrame):
         btn_add_report.pack(side='right')
         
     def add_report(self):
-        self.close_subwindows() # chiude il dialog, se era già aperto
+        self.close_toplevels() # chiude il dialog, se era già aperto
         
         # crea un nuovo dialog
-        dlg_add_report = AddReportDialog(self)
+        dlg_add_report = AddReportDialog(self, self.patient_dict)
               
         # salva il riferimento al dialog
         self.dlg_add_report = dlg_add_report
         
-    def close_subwindows(self):
+    def close_toplevels(self):
         # se era già aperto un dialog, lo chiude
         if self.dlg_add_report is not None:
             self.dlg_add_report.destroy()

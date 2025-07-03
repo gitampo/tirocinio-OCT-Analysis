@@ -80,9 +80,10 @@ CC_btn_text_primary = __CC_black
 CC_btn_primary = __CC_blue_050
 
 # dialog
-CC_dlg = __CC_blue_050
-CC_dlg_field = __CC_blue_075
+CC_dlg = __CC_background
+CC_dlg_text = __CC_white
+CC_dlg_field = __CC_blue_500
 CC_btn_image_fg = __CC_white
-CC_btn_image_bg = __CC_blue_200
+CC_btn_image_bg = __CC_blue_600
 CC_btn_submit_fg = __CC_black
-CC_btn_submit_bg = __CC_white
+CC_btn_submit_bg = __CC_blue_050

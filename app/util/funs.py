@@ -1,3 +1,7 @@
+import pathlib
+from pathlib import Path
+import re
+
 def remove_tag(tag, tag_tuple):
     new_tag_tuple = tag_tuple
     
@@ -95,3 +99,22 @@ def remove_headings(unwanted_headings, headings, rows):
     
 def hasfunc(item, func):
     return hasattr(item, func) and callable(eval(f'item.{func}'))
+
+def get_available_filename(directory, filename):
+    
+    # inizializzazione
+    available_filename = filename
+    counter = 1
+    path = Path(directory)/filename
+    
+    # ciclo per ricerca di un nome disponibile
+    while path.exists():
+        # ottiene il nome del file pulito, senza contatore
+        cleaned_stem = re.sub(r'\(\d+\)$', '', path.stem)
+        
+        # se il nome è già preso, aggiunge il counter e cambia il nome
+        available_filename = f'{cleaned_stem}({counter}){path.suffix}'
+        path = path.with_name(available_filename) # rinomina il file
+        counter += 1 # se serve un'altra iterazione
+        
+    return available_filename

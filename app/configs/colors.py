@@ -70,6 +70,7 @@ CC_tbl_scroll          = __CC_blue_700
 CC_tbl_scroll_trough   = __CC_blue_300
 
 # canvas del report
+CC_canvas_fg = __CC_blue_450
 CC_canvas_bg = __CC_background
 
 # info frame

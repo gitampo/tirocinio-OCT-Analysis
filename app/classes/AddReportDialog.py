@@ -7,10 +7,9 @@ from configs.sizes import *
 from util.funs import * 
 from datetime import datetime
 from tkinter import filedialog, messagebox
-from shutil import copy
-import pandas as pd
 import os
-from pathlib import Path
+import shutil
+import pandas as pd
 
 class AddReportDialog(tk.Toplevel):
     
@@ -28,10 +27,6 @@ class AddReportDialog(tk.Toplevel):
         # attributi di classe
         self.parent = parent
         self.patient_dict = patient_dict
-        self.submitted_date = None
-        self.submitted_description = None
-        self.submitted_imagepath = None
-        self.imagepath_inserted = None
         
         # imposta il layout (label, text, button...)
         lbl_date_value, txt_description, lbl_image_value = self.setupLayout()        
@@ -157,28 +152,34 @@ class AddReportDialog(tk.Toplevel):
         self.geometry(f'{window_w}x{window_h}+{left}+{top}')
         
     def add_report(self):    
-        # ottiene i valori di input
-        self.submitted_date = self.lbl_date_value['text']
-        self.submitted_description = self.txt_description.get('1.0','end-1c')
-        self.submitted_imagepath = self.imagepath_inserted
         
-        # controlli sui dati di input   
-        if not self.submitted_description: 
+        # ottiene i valori di input
+        submitted_date = self.lbl_date_value['text']
+        submitted_description = self.txt_description.get('1.0','end-1c')
+        submitted_imagepath = self.entered_imagepath
+        
+        # controlli sui dati di input
+        if not submitted_description:
             messagebox.showwarning('Attenzione!','È necessario inserire una descrizione al Report')
             return
-        elif not self.submitted_imagepath: 
+        elif not submitted_imagepath: 
             messagebox.showwarning('Attenzione!','È necessario inserire un\'immagine di un OCT')
             return
                 
-        # da path assoluto a relativo
-        self.submitted_imagepath = Path(self.submitted_imagepath).relative_to(Path.cwd())
-                
+        # controlla se il nome è già preso
+        image_filename = os.path.basename(submitted_imagepath)
+        image_filename = get_available_filename('./images/', image_filename)
+
+        # copia il file nella cartella delle immagini
+        stored_imagepath = f'./images/{image_filename}'
+        shutil.copy(submitted_imagepath, stored_imagepath)
+            
         # nuova riga dei report
         new_row = pd.DataFrame([{
             'id_paziente':str(self.patient_dict['id']).rjust(4,'0'),
-            'data':self.submitted_date,
-            'descrizione':self.submitted_description,
-            'oct':self.submitted_imagepath,
+            'data':submitted_date,
+            'descrizione':submitted_description,
+            'oct':stored_imagepath,
         }])
 
         # Salva la riga in modalità append, senza intestazione
@@ -208,7 +209,7 @@ class AddReportDialog(tk.Toplevel):
         # se l'estensione è valida, accetta il file altrimenti mostra un alert
         valid_extensions = ('.png','.jpg','.jpeg')
         if(extension in valid_extensions):
-            self.imagepath_inserted = imagepath
-            self.lbl_image_value['text'] = os.path.basename(self.imagepath_inserted)
+            self.entered_imagepath = imagepath
+            self.lbl_image_value['text'] = os.path.basename(self.entered_imagepath)
         else:
             messagebox.showwarning('File non valido!', f'Il File selezionato non è tra i seguenti formati:\n {" ".join(valid_extensions)}')

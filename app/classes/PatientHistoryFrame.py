@@ -55,7 +55,7 @@ class PatientHistoryFrame(TableFrame):
         self.rowconfigure(3, weight=1)
         
     def alert_parent_of_rowadd(self, event):# genera un evento visibile dal padre e gli passa i dati dello storico cliccato
-        self.shared_data = self.rpatient_dicte
+        self.shared_data = self.patient_dict
         self.event_generate('<<ReportRowAdded>>')
         
     def alert_parent_of_rowclick(self, event):

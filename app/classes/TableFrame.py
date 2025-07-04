@@ -26,7 +26,9 @@ class TableFrame(tk.Frame):
         stylename = 'Treeview'
         style.theme_use('clam')
         style.layout(stylename, style.layout('Treeview'))
-        style.configure(stylename, rowheight=SZ_tbl_pat_list_row_h, fieldbackground=CC_tbl_empty)
+        style.configure(stylename, 
+            rowheight=SZ_tbl_pat_list_row_h, 
+            fieldbackground=CC_tbl_empty)
         style.map(stylename,
             background=[('active', CC_tbl_highlight), ('selected', CC_tbl_selected)],
             foreground=[('active', CC_tbl_text_highlight), ('selected', CC_tbl_text_selected)]

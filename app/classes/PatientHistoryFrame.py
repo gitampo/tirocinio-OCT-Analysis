@@ -55,20 +55,21 @@ class PatientHistoryFrame(TableFrame):
         self.rowconfigure(3, weight=1)
         
     def alert_parent_of_rowadd(self, event):# genera un evento visibile dal padre e gli passa i dati dello storico cliccato
-        self.shared_data = self.patient_dict
+        self.shared_data = self.rpatient_dicte
         self.event_generate('<<ReportRowAdded>>')
         
     def alert_parent_of_rowclick(self, event):
         # se l'utente preme sull'heading, non deve fare niente
         region = self.tbl.identify_region(event.x, event.y)
-        if region == "heading": return "break"
+        if region not in ('cell','tree'): return
 
-        # ottiene l'item della riga premuta
-        item_iid = self.tbl.identify_row(event.y)
-        if item_iid is None or item_iid == '': return
+        # ottiene l'iid della riga premuta
+        clicked_iid = self.tbl.identify_row(event.y)
+        if not clicked_iid: return
 
         # dizionario del report composto da chiavi e valori (chiavi=headings, valori=valori dell'item)
-        report_dict = dict(zip(self.table_headings, self.table_rows[int(item_iid)]))
+        index = self.tbl.index(clicked_iid)
+        report_dict = dict(zip(self.table_headings, self.table_rows[index]))
     
         # dati condivisi con il parent
         self.shared_data = report_dict

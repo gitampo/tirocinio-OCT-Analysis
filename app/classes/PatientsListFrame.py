@@ -35,14 +35,15 @@ class PatientsListFrame(TableFrame):
     def alert_parent(self, event):
         # se l'utente preme sull'heading, non deve fare niente
         region = self.tbl.identify_region(event.x, event.y)
-        if region == "heading": return "break"
+        if region not in ('cell','tree'): return 
 
-        # ottiene l'item della riga premuta
-        item_iid = self.tbl.identify_row(event.y)
-        item = self.tbl.item(item_iid)
+        # ottiene l'iid della riga premuta
+        clicked_iid = self.tbl.identify_row(event.y)
+        if not clicked_iid: return
+        clicked_item = self.tbl.item(clicked_iid)
 
         # dizionario del paziente composto da chiavi e valori (chiavi=headings, valori=valori dell'item)
-        patient_dict = dict(zip(self.tbl['columns'], item['values']))
+        patient_dict = dict(zip(self.tbl['columns'], clicked_item['values']))
     
         # dati condivisi con il parent
         self.shared_data = patient_dict

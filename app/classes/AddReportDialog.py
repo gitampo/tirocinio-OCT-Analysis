@@ -22,7 +22,6 @@ class AddReportDialog(tk.Toplevel):
         
         # conifigurazione del dialog
         self.title('Aggiungi un nuovo Report')
-        self.minsize(SZ_min_dialog_w, SZ_min_dialog_h)
         self.centered_geometry(SZ_dialog_w, SZ_dialog_h)
         self.resizable(False, False)
         
@@ -48,27 +47,23 @@ class AddReportDialog(tk.Toplevel):
         
         # frame contenitore (principalmente per background)
         frm_container = tk.Frame(self, bg=CC_dlg)
-        frm_container.pack(fill='both', expand=True)
         
-        # frame 
+        # frame form
         frm_form = tk.Frame(frm_container, bg=CC_dlg, padx=20, pady=20)
-        frm_form.pack(expand=True)
                
         # sotto-frame per i campi
-        frm_patient_id = tk.Frame(frm_form, bg=CC_dlg_field)
-        frm_patient_name_surname = tk.Frame(frm_form, bg=CC_dlg_field)
-        frm_date = tk.Frame(frm_form, bg=CC_dlg_field)
+        frm_data = tk.Frame(frm_form, bg=CC_dlg_field)
         frm_description = tk.Frame(frm_form, bg=CC_dlg_field)
         frm_image = tk.Frame(frm_form, bg=CC_dlg_field)
                
         ### widget
         
         # etichette degli input
-        lbl_patient_id = self.setupLabel(frm_patient_id, 'ID Paziente: ')
-        lbl_patient_name_surname = self.setupLabel(frm_patient_name_surname, 'Nome e Cognome: ')
-        lbl_date = self.setupLabel(frm_date, 'Data: ')
+        lbl_patient_id = self.setupLabel(frm_data, 'ID Paziente: ')
+        lbl_patient_name_surname = self.setupLabel(frm_data, 'Nome e Cognome: ')
+        lbl_date = self.setupLabel(frm_data, 'Data: ')
         lbl_description = self.setupLabel(frm_description, 'Descrizione: ')
-        lbl_image = self.setupLabel(frm_image, 'Immagine: ')   
+        lbl_image = self.setupLabel(frm_image, 'Immagine: ')
         
         # dati mostrati (id, nome e cognome del paziente e data di inserimento del report)
         patient_id = str(self.patient_dict['id']).rjust(4,'0')
@@ -76,11 +71,11 @@ class AddReportDialog(tk.Toplevel):
         time_now = datetime.now().strftime('%Y-%m-%d %H:%M')# ottiene il tempo attuale, nel formato corretto
         
         # input dell'utente
-        lbl_patient_id_value = self.setupLabel(frm_patient_id, f'{patient_id}', (FT_family, FT_size, ''))
-        lbl_patient_name_surname_value = self.setupLabel(frm_patient_name_surname, patient_name_surname, (FT_family, FT_size, ''))
-        lbl_date_value = self.setupLabel(frm_date, f'{time_now}', (FT_family, FT_size, ''))
-        lbl_image_value = self.setupLabel(frm_image, '...', (FT_family, FT_size, ''))
-        txt_description = tk.Text(frm_description, relief='flat', height=3)
+        lbl_patient_id_value = self.setupValue(frm_data, f'{patient_id}')
+        lbl_patient_name_surname_value = self.setupValue(frm_data, patient_name_surname)
+        lbl_date_value = self.setupValue(frm_data, f'{time_now}')
+        lbl_image_value = self.setupValue(frm_image, '. . .')
+        txt_description = tk.Text(frm_description, relief='flat', height=5)
         btn_image = tk.Button(frm_form, 
                             text='Inserisci immagine +', 
                             command=self.add_image, 
@@ -94,20 +89,23 @@ class AddReportDialog(tk.Toplevel):
         
         ### posizionamento dei widget
         
-        # paziente (id)
-        lbl_patient_id.pack(side='left')
-        lbl_patient_id_value.pack(side='left')
-        frm_patient_id.pack(fill='x')
+        # contenitori
+        frm_container.pack(fill='both', expand=True)
+        frm_form.pack(expand=True)
+        frm_data.pack(fill='x')
+        frm_data.columnconfigure(1, weight=1)
         
-        # paziente (nome e cognome)
-        lbl_patient_name_surname.pack(side='left')
-        lbl_patient_name_surname_value.pack(side='left')
-        frm_patient_name_surname.pack(fill='x')
+        # campi dei dati
+        data_fields = [
+            (lbl_patient_id, lbl_patient_id_value),
+            (lbl_patient_name_surname, lbl_patient_name_surname_value),
+            (lbl_date, lbl_date_value)
+            ]
         
-        # data
-        lbl_date.pack(side='left')
-        lbl_date_value.pack(side='left')
-        frm_date.pack(fill='x')
+        # posiziona etichette e valori, per ogni campo
+        for i,(label,value) in enumerate(data_fields):
+            label.grid(row=i, column=0, sticky='we')
+            value.grid(row=i, column=1, sticky='we')
         
         # descrizione
         lbl_description.pack(fill='x')
@@ -116,7 +114,8 @@ class AddReportDialog(tk.Toplevel):
         
         # immagine
         lbl_image.pack(side='left', fill='x')
-        lbl_image_value.pack(side='left', fill='x')
+        lbl_image_value.pack(side='left', fill='x', expand=True)
+        lbl_image_value['anchor'] = 'center'
         frm_image.pack(fill='x')
         
         # pulsante per l'immagine
@@ -127,15 +126,24 @@ class AddReportDialog(tk.Toplevel):
         
         return lbl_date_value, txt_description, lbl_image_value
     
-    def setupLabel(self, parent, text, font_specs = (FT_family, FT_size, 'bold')):
+    def setupLabel(self, parent, text):
         return tk.Label(parent, 
             text=text, 
             anchor='w', 
             justify='left',
-            fg=CC_dlg_text,
-            bg=CC_dlg_field,
+            fg=CC_dlg_label_fg,
+            bg=CC_dlg_label_bg,
             padx=5, pady=5,
-            font=font_specs)
+            font=(FT_family, FT_size, 'bold'))
+        
+    def setupValue(self, parent, text):
+        return tk.Label(parent, 
+            text=text, 
+            anchor='w', 
+            justify='left',
+            fg=CC_dlg_value_fg,
+            bg=CC_dlg_value_bg,
+            padx=5, pady=5)
         
     def centered_geometry(self,window_w, window_h):
         # dimensioni dello schermo

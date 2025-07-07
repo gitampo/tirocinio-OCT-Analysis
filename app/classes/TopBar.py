@@ -18,12 +18,12 @@ class TopBar(tk.Frame):
         
         # nome utente loggato
         lbl_user = tk.Label(self, text='Utente: ', font=(FT_family,FT_size,'bold'), bg=CC_topbar, fg=CC_topbar_text)
-        lbl_user_value = tk.Label(self, text=user, bg=CC_topbar, fg=CC_topbar_text, padx=10, pady=10) 
+        lbl_user_value = tk.Label(self, text=user, bg=CC_topbar, fg=CC_topbar_text, pady=10) 
         lbl_logout = tk.Label(self, text='Logout', bg=CC_topbar, fg=CC_topbar_logout, padx=10, pady=10, font=underlined) 
         
         # posizionamento dei widget
         lbl_logout.pack(side='right')
-        lbl_user_value.pack(side='right')
+        lbl_user_value.pack(side='right', padx=(0,10))
         lbl_user.pack(side='right')
         
         # gestione del logout

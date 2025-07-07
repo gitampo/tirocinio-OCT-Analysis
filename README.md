@@ -5,3 +5,52 @@ L’OCT (tomografia ottica a radiazione coerente) è un esame non invasivo c
 Realizzare un’applicazione medica che fornisca, almeno, le seguenti possibilità: 
 - al paziente, l’acquisizione e relativa visualizzazione delle sue OCT per una migliore conservazione della sua documentazione sanitaria; 
 - al medico e al paziente, di estrarre e visualizzare informazioni sull’andamento di una patologia o, comunque, di uno status per cui è necessario un monitoraggio. 
+
+## Eseguire il progetto
+````bash 
+# entrare nelle cartella app/
+cd OCT-Analysis/app/
+
+# eseguire lo script main.py
+python main.py
+````
+
+## Struttura del progetto
+``` bash
+# sono esclusi dall'albero i file con i dati di mockup (es. *.csv e images/)
+# è rappresentata principalmente la struttura del codice
+
+OCT-Analysis
+│
+├── README.md
+│
+├── .gitignore
+│
+└── app
+    │
+    ├── main.py
+    │
+    ├── assets
+    │   └── app_logo.png
+    │
+    ├── classes
+    │   ├── AddReportDialog.py
+    │   ├── ImageCanvas.py
+    │   ├── LoginFrame.py
+    │   ├── OCTAnalysisApp.py
+    │   ├── PatientHistoryFrame.py
+    │   ├── PatientsListFrame.py
+    │   ├── ReportFrame.py
+    │   ├── TableFrame.py
+    │   └── TopBar.py
+    │
+    ├── configs
+    │   ├── colors.py
+    │   ├── fonts.py
+    │   ├── sizes.py
+    │   └── tables.py
+    │
+    └── util
+        ├── data.py
+        └── funs.py
+```

@@ -10,7 +10,7 @@ from util.funs import *
 
 class PatientHistoryFrame(TableFrame):
     
-    def __init__(self, parent, table_headings, table_rows, patient_dict):
+    def __init__(self, parent, table_headings, table_rows, patient_dict, viewtype = 'doctor'):
        
         
         # rimuove le colonne indesiderate
@@ -42,13 +42,16 @@ class PatientHistoryFrame(TableFrame):
         self.shared_data = None
                 
         # imposta i widget
-        self.setupFrameTitle(self, f'Storico di "{nome} {cognome}"', row=0, column=0)
+        self.setupFrameTitle(self, f'Storico di {nome} {cognome}', row=0, column=0)
         self.setupInfoFrame(self, patient_dict, row=1, column=0, )
-        self.setupAddReportButton(self, row=2, column=0)
 
         # associa l'apertura dello storico del paziente, all'evento del click sulla riga
         self.tbl.bind('<Button-1>', self.alert_parent_of_rowclick)
-        self.bind('<<AddDialogSuccess>>', self.alert_parent_of_rowadd)
+        
+        # mostra il pulsante di aggiunta solo se la view è del dottore
+        if viewtype == 'doctor':
+            self.setupAddReportButton(self, row=2, column=0)
+            self.bind('<<AddDialogSuccess>>', self.alert_parent_of_rowadd)
         
         # configurazione di righe e colonne
         self.columnconfigure(0, weight=1)
@@ -108,6 +111,7 @@ class PatientHistoryFrame(TableFrame):
         
         font_specs = (FT_family, FT_size, 'bold')
         
+        # etichette delle info del paziente
         lbl_tags = [
           tk.Label(frm_info,pady=2, fg=CC_frm_info_text, bg=CC_frm_info, font=font_specs, anchor='w',text='Id:')
          ,tk.Label(frm_info,pady=2, fg=CC_frm_info_text, bg=CC_frm_info, font=font_specs, anchor='w',text='Nome:')
@@ -116,6 +120,7 @@ class PatientHistoryFrame(TableFrame):
          ,tk.Label(frm_info,pady=2, fg=CC_frm_info_text, bg=CC_frm_info, font=font_specs, anchor='w',text='Età:')
         ]
         
+        # valori delle info del paziente
         lbl_values = [
           tk.Label(frm_info, pady=2, fg=CC_frm_info_text, bg=CC_frm_info, anchor='w',text=f'{patient_dict["id"]}')
          ,tk.Label(frm_info, pady=2, fg=CC_frm_info_text, bg=CC_frm_info, anchor='w',text=f'{patient_dict["nome"]}')
@@ -124,11 +129,12 @@ class PatientHistoryFrame(TableFrame):
          ,tk.Label(frm_info, pady=2, fg=CC_frm_info_text, bg=CC_frm_info, anchor='w',text=f'{patient_dict["età"]}')
         ] 
         
+        # posizionamento di etichette e valori
         pad_l = 0
         for lbl_tag, lbl_val in zip(lbl_tags,lbl_values):     
             lbl_tag.pack(padx=(pad_l,0), side='left')  
             lbl_val.pack(side='left')
-            pad_l = 30
+            pad_l = 30 # padding sinistro di 30 (tranne che per il primo elemento)
             
         return frm_info
     

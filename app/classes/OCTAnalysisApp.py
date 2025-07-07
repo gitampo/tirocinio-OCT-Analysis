@@ -2,12 +2,15 @@ import tkinter as tk
 from tkinter import ttk
 import tkinter.font as tkFont
 from classes.TopBar import *
+from classes.LoginFrame import *
 from classes.PatientsListFrame import *
 from classes.PatientHistoryFrame import *
 from classes.ReportFrame import *
 from configs.colors import *
 from configs.fonts import *
 import util.data as data
+
+type 
 
 class OCTAnalysisApp(tk.Tk):
     def __init__(self):
@@ -20,30 +23,26 @@ class OCTAnalysisApp(tk.Tk):
         self.minsize(SZ_min_window_w, SZ_min_window_h)
         self.centered_geometry(SZ_window_w, SZ_window_h)
         
-        # barra superiore
-        top_bar = TopBar(self)
-        top_bar.grid(row=0, column=0, sticky='nswe')
-        
-        # retrieve dei dati
-        patients_headings, patients_rows = data.retrieve_all_patients()
-        
-        # frame principale
-        self.rowconfigure(1, weight=1)
-        self.columnconfigure(0, weight=1)
-        frm_patients = PatientsListFrame(self, patients_headings, patients_rows)
-        frm_patients.grid(row=1, column=0, sticky='nswe')
-        
-        # confugurazione degli eventi
+        # configurazione degli eventi
         self.bind('<<PatientRowClicked>>', self.open_patient_history)
         self.bind('<<ReportRowClicked>>', self.open_report)
         self.bind('<<ReportRowAdded>>', self.refresh_patient_history)
+        self.bind('<<DoctorLogged>>', self.redirect_doctor)
+        self.bind('<<PatientLogged>>', self.redirect_patient)
         self.bind('<<GoBack>>', self.close_active_frame)
         self.bind('<Escape>', self.close_active_frame)
+        self.bind('<<Logout>>', self.logout)
         
         # attributi di classe
-        self.top_bar = top_bar
-        self.frm_patients = frm_patients
+        self.is_user_logged = False
+        self.user_dict = None
+        self.top_bar = None
         self.frm_opened_list = []
+        self.who_is_logged = None
+        self.frm_base = None
+        
+        # schermata di login
+        self.frm_login = self.login()  
     
     def centered_geometry(self,window_w, window_h):
         # dimensioni dello schermo
@@ -56,6 +55,76 @@ class OCTAnalysisApp(tk.Tk):
         # posizionamento centrato
         self.geometry(f'{window_w}x{window_h}+{left}+{top}')
         
+    def login(self):                
+        # configurazione di righe e colonne
+        self.columnconfigure(0, weight=1)
+        self.rowconfigure(0, weight=1)
+        
+        # schermata di login
+        frm_login = LoginFrame(self)
+        frm_login.grid(row=0, column=0, sticky='nswe')
+        
+        return frm_login
+        
+    def redirect_doctor(self, event):
+        # chiude la schermata di login
+        self.frm_login.destroy()
+        
+        # ricorda chi è loggato
+        self.who_is_logged = 'doctor'
+        
+        # configurazione di righe e colonne
+        self.columnconfigure(0, weight=1)
+        self.rowconfigure(0, weight=0)
+        self.rowconfigure(1, weight=1)
+        
+        # ottiene i dati del paziente che sta loggando
+        doctor_dict = data.find_doctor(2)
+        prefix = 'Dott.' if doctor_dict['sesso']=='M' else 'Dott.ssa'
+        
+        # barra superiore
+        self.top_bar = TopBar(self, f'{prefix} {doctor_dict["nome"]} {doctor_dict["cognome"]}')       
+        self.top_bar.grid(row=0, column=0, sticky='we')
+        
+        # schermata dei pazienti
+        self.frm_base = self.open_patients_list()
+
+    def redirect_patient(self, event): 
+        # chiude la schermata di login   
+        self.frm_login.destroy()
+
+        self.who_is_logged = 'patient'
+        
+        # configurazione di righe e colonne
+        self.columnconfigure(0, weight=1)
+        self.rowconfigure(0, weight=0)
+        self.rowconfigure(1, weight=1)
+        
+        # ottiene i dati del paziente che sta loggando
+        patient_dict = data.find_patient(1)
+        
+        # barra superiore
+        self.top_bar = TopBar(self, f'{patient_dict["nome"]} {patient_dict["cognome"]}')       
+        self.top_bar.grid(row=0, column=0, sticky='we')
+        
+        # dati da trasmettere
+        event.widget.shared_data = patient_dict
+        
+        # schermata dei pazienti
+        self.frm_base = self.open_patient_history(event)
+        
+    def open_patients_list(self):
+        # retrieve dei dati
+        patients_headings, patients_rows = data.retrieve_all_patients()
+        
+        # frame della lista di pazienti
+        frm_patients = PatientsListFrame(self, patients_headings, patients_rows)
+        
+        # posiziona il frame
+        frm_patients.grid(row=1, column=0, sticky='nswe')
+                
+        return frm_patients
+        
     def open_patient_history(self, event):
         # ottiene i dati condivisi tramite evento se ce ne sono
         patient_dict = event.widget.shared_data
@@ -66,15 +135,18 @@ class OCTAnalysisApp(tk.Tk):
         patient_history_headings, patient_history_rows = data.retrieve_one_patient_history(patient_id)
         
         # istanzia il frame del paziente selezionato e lo porta in primo piano
-        frm_patient_history = PatientHistoryFrame(self, patient_history_headings, patient_history_rows, patient_dict)
+        frm_patient_history = PatientHistoryFrame(self, patient_history_headings, patient_history_rows, patient_dict, self.who_is_logged)
         frm_patient_history.grid(row=1, column=0, sticky='nswe')
         frm_patient_history.tkraise()
         
         # mostra il tasto per tornare indietro
-        self.top_bar.show_back_button()
+        if self.who_is_logged == 'doctor':
+            self.top_bar.show_back_button()
         
-        # aggiunge il nuovo frame aperto in cima alla lista dei frame aperti
-        self.frm_opened_list.insert(0, frm_patient_history)
+            # aggiunge il nuovo frame aperto in cima alla lista dei frame aperti
+            self.frm_opened_list.insert(0, frm_patient_history)
+            
+        return frm_patient_history
           
     def open_report(self, event):
         # ottiene i dati condivisi tramite evento se ce ne sono
@@ -112,3 +184,28 @@ class OCTAnalysisApp(tk.Tk):
     def refresh_patient_history(self, event):
         self.close_active_frame()
         self.open_patient_history(event)
+        
+    def reset_grid(self):
+        # per tutti i figli della finestra
+        for widget in self.winfo_children():
+            # ottiene informazioni sul grid del figlio
+            info = widget.grid_info()
+            
+            if info:
+                # resetta tutti i 'weight' delle righe e delle colonne usate
+                self.rowconfigure(info['row'], weight=0)
+                self.columnconfigure(info['column'], weight=0)
+        
+    def close_all(self):    
+        # chiude tutti i frame aperti
+        for frm in self.frm_opened_list:
+            frm.destroy()
+        
+        # chiude il frame 'home'
+        self.frm_base.destroy()
+    
+    def logout(self, event):    
+
+        self.reset_grid()
+        self.close_all()
+        self.frm_login = self.login()

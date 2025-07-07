@@ -15,8 +15,9 @@ __CC_light_blue       = '#040405'
 __CC_ice_blue         = '#CDDDF1' 
 __CC_cool_gray        = '#C7D4E6' 
 __CC_white_snow       = '#D6E4F3'
-__CC_gray             = "#C7C7C7"
-__CC_light_gray       = '#EEEBE7'
+__CC_gray             = "#777777"
+__CC_light_gray       = "#AAAAAA"
+__CC_blue_tech        = '#0065ff'
 
 # Palette di blu (dal più scuro al più chiaro)
 __CC_blue_900   = "#0A192F"   # quasi nero con sfumatura blu
@@ -32,11 +33,16 @@ __CC_blue_100   = "#7A97D9"   # blu pastello chiaro
 __CC_blue_075   = "#87A3E0"   # azzurro pastello
 __CC_blue_050   = "#AFC7F3"   # azzurro molto chiaro per evidenziazioni
 
-
 # Colori speciali
-__CC_primary     = __CC_blue_900
 __CC_background  = __CC_blue_800
 __CC_text        = __CC_white
+
+# app
+CC_appname_fg = __CC_blue_tech
+
+# login
+CC_btn_login_fg = __CC_black
+CC_btn_login_bg = __CC_blue_050
 
 # frame
 CC_title_fg    = __CC_text
@@ -44,8 +50,9 @@ CC_title_bg    = __CC_background
 CC_frm_default = __CC_background
 
 # topbar
-CC_topbar             = __CC_primary
+CC_topbar             = __CC_blue_900
 CC_topbar_text        = __CC_text
+CC_topbar_logout      = __CC_blue_100
 CC_topbar_btn_back_fg = __CC_text
 CC_topbar_btn_back_bg = __CC_background
 
@@ -62,8 +69,8 @@ CC_tbl_evenrow         = __CC_blue_400
 CC_tbl_oddrow          = __CC_blue_300
 
 # interazioni nelle tabelle
-CC_tbl_selected        = __CC_primary
-CC_tbl_highlight       = __CC_primary
+CC_tbl_selected        = __CC_blue_900
+CC_tbl_highlight       = __CC_blue_900
 
 # scroolbar nelle tabelle
 CC_tbl_scroll          = __CC_blue_700

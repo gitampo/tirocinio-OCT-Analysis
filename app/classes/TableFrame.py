@@ -17,7 +17,7 @@ class TableFrame(tk.Frame):
                  font_specs=(FT_family, FT_h1_size, 'bold'), 
                  columns_anchors_dict=None, 
                  columns_sizes_dict=None):
-        super(TableFrame,self).__init__(bg=CC_frm_default)
+        super(TableFrame,self).__init__(parent, bg=CC_frm_default)
         
         # istanza dello stile
         style = ttk.Style()
@@ -79,7 +79,6 @@ class TableFrame(tk.Frame):
         
         # eventi della treeview
         tbl.bind("<Motion>", self.handle_highlight)
-        tbl.bind("<MouseWheel>", self.handle_highlight)
         tbl.bind("<Leave>", self.on_leave)
         tbl.bind("<Configure>", self.resize_columns)
         tbl.bind("<<TreeviewSelect>>", self.stop_selection)
@@ -180,6 +179,7 @@ class TableFrame(tk.Frame):
         return scroll
 
     def handle_highlight(self,event,*args):
+        
         # imposta il cursore
         self.configure(cursor="hand2")
         

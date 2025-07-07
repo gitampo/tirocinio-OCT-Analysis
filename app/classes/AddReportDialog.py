@@ -14,7 +14,7 @@ import pandas as pd
 class AddReportDialog(tk.Toplevel):
     
     def __init__(self, parent, patient_dict):
-        super(AddReportDialog,self).__init__()
+        super(AddReportDialog,self).__init__(parent)
         
         # il font di default del dialog
         tkFont.nametofont('TkDefaultFont').configure(family=FT_family, size=FT_size)
@@ -23,10 +23,14 @@ class AddReportDialog(tk.Toplevel):
         self.title('Aggiungi un nuovo Report')
         self.centered_geometry(SZ_dialog_w, SZ_dialog_h)
         self.resizable(False, False)
+        self.transient(parent)  # Si comporta come finestra figlia
+        self.grab_set()         # Blocca l'interazione con la main window
+        self.focus_force()      # Forza il focus
         
         # attributi di classe
         self.parent = parent
         self.patient_dict = patient_dict
+        self.entered_imagepath = None
         
         # imposta il layout (label, text, button...)
         lbl_date_value, txt_description, lbl_image_value = self.setupLayout()        

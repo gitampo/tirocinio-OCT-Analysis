@@ -1,6 +1,4 @@
 import tkinter as tk
-from tkinter import ttk
-from tkinter import messagebox
 from configs.colors import *
 from configs.sizes import *
 from configs.fonts import *
@@ -8,11 +6,10 @@ from configs.tables import *
 from util.funs import *
 from classes.TableFrame import *
 from PIL import Image, ImageTk
-import pathlib
 
 class ImageCanvas(tk.Canvas):
     
-    def __init__(self, parent, image, alt=''):        
+    def __init__(self, parent, image, width=None, height=None, alt=''):        
         super(ImageCanvas,self).__init__(parent)
 
         # controllo sull'esistenza dell'immagine
@@ -23,17 +20,21 @@ class ImageCanvas(tk.Canvas):
         self.alt = alt
 
         # setup del canvas
-        self.canvas = self.setupCanvas()
+        self.canvas = self.setupCanvas(width, height)
         
         # gestione del resize
         self.canvas.bind('<Configure>', self.resize_image)
         
-    def setupCanvas(self, image=None):
+    def setupCanvas(self, width, height):
        
         # istanzia il Canvas dove risiederà l'immagine
         canvas = tk.Canvas(self, bg=CC_canvas_bg, highlightthickness=0)
         canvas.pack(fill='both', expand=True)
-        
+
+        # dimensioni del canvas
+        if width: canvas.configure(width=width)
+        if height: canvas.configure(height=height)
+
         return canvas
     
     def resize_image(self, event):

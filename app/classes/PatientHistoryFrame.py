@@ -1,5 +1,4 @@
 import tkinter as tk
-from tkinter import ttk
 from configs.colors import *
 from configs.sizes import *
 from configs.fonts import *

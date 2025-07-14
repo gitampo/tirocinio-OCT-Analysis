@@ -1,5 +1,4 @@
 import tkinter as tk
-from tkinter import ttk
 import tkinter.font as tkFont
 from classes.TopBar import *
 from classes.LoginFrame import *
@@ -10,8 +9,6 @@ from configs.colors import *
 from configs.fonts import *
 import util.data as data
 
-type 
-
 class OCTAnalysisApp(tk.Tk):
     def __init__(self):
         super(OCTAnalysisApp,self).__init__()
@@ -21,7 +18,8 @@ class OCTAnalysisApp(tk.Tk):
         # configurazione della finestra principale
         self.title('OCT-Analysis')
         self.minsize(SZ_min_window_w, SZ_min_window_h)
-        self.centered_geometry(SZ_window_w, SZ_window_h)
+        self.centered_geometry(w_ratio=SZ_window_w_ratio, h_ratio=SZ_window_h_ratio,
+                               min_w=SZ_min_window_w, min_h=SZ_min_window_h)
         
         # configurazione degli eventi
         self.bind('<<PatientRowClicked>>', self.open_patient_history)
@@ -44,11 +42,24 @@ class OCTAnalysisApp(tk.Tk):
         # schermata di login
         self.frm_login = self.login()  
     
-    def centered_geometry(self,window_w, window_h):
+    def centered_geometry(self,
+                          window_w = 100, window_h = 100, 
+                          w_ratio = 0.1, h_ratio = 0.1, 
+                          min_w = 0, min_h = 0, 
+                          with_ratio=True):
         # dimensioni dello schermo
         screen_w = self.winfo_screenwidth()
         screen_h = self.winfo_screenheight()
         
+        if with_ratio:
+            # dimensioni della finestra (in proporzione)
+            window_w = int(screen_w * w_ratio if w_ratio>=0.1 else 0.1) # il ratio deve essere almeno 10%
+            window_h = int(screen_h * h_ratio if h_ratio>=0.1 else 0.1) # il ratio deve essere almeno 10%
+
+            # controllo sulle dimensioni minime
+            if window_w < min_w: window_w = min_w
+            if window_h < min_h: window_h = min_h
+
         # calcola la posizione centrata
         left, top = centered_position((screen_w, screen_h), (window_w, window_h))
         

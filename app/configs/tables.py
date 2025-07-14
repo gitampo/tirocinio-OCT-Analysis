@@ -11,14 +11,20 @@ AC_patient_history = {
     'descrizione':'w'  
 }
 
-# se si inseriscono le dimensioni di tutte le colonne, la somma deve ammontare a 1
+# Larghezza percentuale di ciascuna colonna
+# (se si inseriscono le dimensioni di tutte le colonne, 
+#  allora la somma deve ammontare a 1, 
+#  altrimenti le dimensioni vengono ignorate)
 CS_patients_list = { 
     'id': 0.15,
     'sesso': 0.15,
     'età': 0.15
 }
 
-# se si inseriscono le dimensioni di tutte le colonne, la somma deve ammontare a 1
+# Larghezza percentuale di ciascuna colonna
+# (se si inseriscono le dimensioni di tutte le colonne, 
+#  allora la somma deve ammontare a 1, 
+#  altrimenti le dimensioni vengono ignorate)
 CS_patient_history = { 
     'descrizione':0.5
 }

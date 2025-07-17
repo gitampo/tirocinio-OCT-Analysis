@@ -7,7 +7,11 @@ Realizzare un’applicazione medica che fornisca, almeno, le seguenti possibilit
 - al medico e al paziente, di estrarre e visualizzare informazioni sull’andamento di una patologia o, comunque, di uno status per cui è necessario un monitoraggio. 
 
 ## Eseguire il progetto (Unix/macOs)
+
 ````bash 
+# entrare nella cartella del progetto
+cd OCT-Analysis/
+
 # (opzionale) spostarsi in un ambiente virtuale
 python -m venv .venv
 source .venv/bin/activate
@@ -16,7 +20,7 @@ source .venv/bin/activate
 pip install -r requirements.txt
 
 # entrare nella cartella app/
-cd OCT-Analysis/app/
+cd app/
 
 # eseguire lo script main.py
 python main.py

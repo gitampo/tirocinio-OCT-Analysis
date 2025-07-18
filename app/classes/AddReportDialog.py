@@ -8,7 +8,6 @@ from datetime import datetime
 from tkinter import filedialog, messagebox
 import os
 import shutil
-import pandas as pd
 
 class AddReportDialog(tk.Toplevel):
     

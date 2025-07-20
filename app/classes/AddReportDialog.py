@@ -3,9 +3,12 @@ import tkinter.font as tkFont
 from configs.colors import *
 from configs.fonts import *
 from configs.sizes import *
+from configs.paths import *
 from util.funs import * 
+from database import db_manager
 from datetime import datetime
 from tkinter import filedialog, messagebox
+
 import os
 import shutil
 
@@ -158,34 +161,30 @@ class AddReportDialog(tk.Toplevel):
         # ottiene i valori di input
         submitted_date = self.lbl_date_value['text']
         submitted_description = self.txt_description.get('1.0','end-1c')
-        submitted_imagepath = self.entered_imagepath
+        submitted_image_path = self.entered_imagepath
         
         # controlli sui dati di input
         if not submitted_description:
             messagebox.showwarning('Attenzione!','È necessario inserire una descrizione al Report')
             return
-        elif not submitted_imagepath: 
+        elif not submitted_image_path: 
             messagebox.showwarning('Attenzione!','È necessario inserire un\'immagine di un OCT')
             return
                 
         # controlla se il nome è già preso
-        image_filename = os.path.basename(submitted_imagepath)
-        image_filename = get_available_filename('./images/', image_filename)
+        image_filename = os.path.basename(submitted_image_path)
+        image_filename = get_available_filename(PT_images_dir, image_filename)
 
-        # copia il file nella cartella delle immagini
-        stored_imagepath = f'./images/{image_filename}'
-        shutil.copy(submitted_imagepath, stored_imagepath)
-            
-        # nuova riga dei report
-        new_row = pd.DataFrame([{
-            'id_paziente':str(self.patient_dict['id']).rjust(4,'0'),
+        # aggiunta del nuovo report al database
+        db_manager.add_report({
+            'paziente':str(self.patient_dict['id']),
             'data':submitted_date,
             'descrizione':submitted_description,
-            'oct':stored_imagepath,
-        }])
+            'oct':image_filename,
+        })
 
-        # Salva la riga in modalità append, senza intestazione
-        new_row.to_csv('patients_history.csv', mode='a', index=False, header=False)
+        # copia il file nella cartella delle immagini
+        shutil.copy(submitted_image_path, Path(PT_images_dir)/image_filename)
         
         # avvisa il padre del cambiamento
         self.parent.event_generate('<<AddDialogSuccess>>')

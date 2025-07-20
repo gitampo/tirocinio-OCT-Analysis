@@ -7,7 +7,7 @@ from classes.PatientHistoryFrame import *
 from classes.ReportFrame import *
 from configs.colors import *
 from configs.fonts import *
-import util.data as data
+from database import db_manager
 
 class OCTAnalysisApp(tk.Tk):
     def __init__(self):
@@ -90,7 +90,7 @@ class OCTAnalysisApp(tk.Tk):
         self.rowconfigure(1, weight=1)
         
         # ottiene i dati del paziente che sta loggando
-        doctor_dict = data.find_doctor(2)
+        doctor_dict = db_manager.get_doctor(2)
         prefix = 'Dott.' if doctor_dict['sesso']=='M' else 'Dott.ssa'
         
         # barra superiore
@@ -112,7 +112,7 @@ class OCTAnalysisApp(tk.Tk):
         self.rowconfigure(1, weight=1)
         
         # ottiene i dati del paziente che sta loggando
-        patient_dict = data.find_patient(1)
+        patient_dict = db_manager.get_patient(1)
         
         # barra superiore
         self.top_bar = TopBar(self, f'{patient_dict["nome"]} {patient_dict["cognome"]}')       
@@ -126,7 +126,7 @@ class OCTAnalysisApp(tk.Tk):
         
     def open_patients_list(self):
         # retrieve dei dati
-        patients_headings, patients_rows = data.retrieve_all_patients()
+        patients_headings, patients_rows = db_manager.get_all_patients()
         
         # frame della lista di pazienti
         frm_patients = PatientsListFrame(self, patients_headings, patients_rows)
@@ -143,7 +143,7 @@ class OCTAnalysisApp(tk.Tk):
 
         # ottiene lo storico del paziente cercato
         patient_id = patient_dict['id']
-        patient_history_headings, patient_history_rows = data.retrieve_one_patient_history(patient_id)
+        patient_history_headings, patient_history_rows = db_manager.get_patient_history(patient_id)
         
         # istanzia il frame del paziente selezionato e lo porta in primo piano
         frm_patient_history = PatientHistoryFrame(self, patient_history_headings, patient_history_rows, patient_dict, self.who_is_logged)
@@ -165,10 +165,10 @@ class OCTAnalysisApp(tk.Tk):
         if report_dict is None or (not report_dict): return
 
         # ottiene lo storico del paziente cercato
-        report_img = report_dict['oct']
+        report_image_path = Path(PT_images_dir)/report_dict['oct']
         
         # istanzia il frame del report selezionato e lo porta in primo piano
-        frm_report = ReportFrame(self, report_img)
+        frm_report = ReportFrame(self, report_image_path)
         frm_report.grid(row=1, column=0, sticky='nswe')
         frm_report.tkraise()
         

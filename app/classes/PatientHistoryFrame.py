@@ -12,20 +12,16 @@ class PatientHistoryFrame(TableFrame):
     def __init__(self, parent, table_headings, table_rows, patient_dict, viewtype = 'doctor'):
        
         
-        # rimuove le colonne indesiderate
-        unwanted_headings = ('id_paziente','oct')
-        new_table_headings, new_table_rows = remove_headings(unwanted_headings, table_headings, table_rows)
-                
         # supercostruttore
         super(PatientHistoryFrame,self).__init__(
             parent, 
-            new_table_headings,
-            new_table_rows,
-            None, 
+            table_headings,
+            table_rows,
             row=3, column=0,
             font_specs=(FT_family, FT_h2_size, 'bold'),
             columns_anchors_dict=AC_patient_history,
-            columns_sizes_dict=CS_patient_history
+            columns_sizes_dict=CS_patient_history,
+            unwanted_headings = ('id', 'paziente', 'oct')
         )
         
         # dati del paziente

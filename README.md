@@ -28,40 +28,65 @@ python main.py
 
 ## Struttura del progetto
 ``` bash
-# sono esclusi dall'albero i file con i dati di mockup (es. *.csv e images/)
-# è rappresentata principalmente la struttura del codice
-
 OCT-Analysis
 │
 ├── README.md
 │
-├── .gitignore
+├── requirements.txt
 │
 └── app
     │
-    ├── main.py   # entry point
+    │   # entry point
+    ├── main.py 
     │
-    ├── assets
-    │   └── app_logo.png
+    │   # assets
+    ├── assets 
+    │   └── app_logo.png
     │
+    │   # classi per la GUI Tkinter
     ├── classes
-    │   ├── AddReportDialog.py
-    │   ├── ImageCanvas.py
-    │   ├── LoginFrame.py
-    │   ├── OCTAnalysisApp.py
-    │   ├── PatientHistoryFrame.py
-    │   ├── PatientsListFrame.py
-    │   ├── ReportFrame.py
-    │   ├── TableFrame.py
-    │   └── TopBar.py
+    │   ├── AddReportDialog.py
+    │   ├── ImageCanvas.py
+    │   ├── LoginFrame.py
+    │   ├── OCTAnalysisApp.py
+    │   ├── PatientHistoryFrame.py
+    │   ├── PatientsListFrame.py
+    │   ├── ReportFrame.py
+    │   ├── TableFrame.py
+    │   └── TopBar.py
     │
+    │   # moduli di configurazione del progetto
     ├── configs
-    │   ├── colors.py
-    │   ├── fonts.py
-    │   ├── sizes.py
-    │   └── tables.py
+    │   ├── colors.py
+    │   ├── fonts.py
+    │   ├── paths.py
+    │   ├── sizes.py
+    │   └── tables.py
     │
+    │   # package per gestione del database
+    ├── database
+    │   ├── README.md
+    │   ├── __init__.py
+    │   ├── db_manager.py
+    │   ├── query_parser.py
+    │   │
+    │   │   # dati memorizzati
+    │   ├── data 
+    │   │   ├── images/...
+    │   │   └── octanalysis.db
+    │   │
+    │   │   # file di query
+    │   └── queries
+    │       ├── create.sql
+    │       ├── drop.sql
+    │       ├── insert.sql
+    │       └── select.sql
+    │
+    │   # utility
     └── util
-        ├── data.py
         └── funs.py
 ```
+
+## Informazioni sui Package del progetto
+Per ulteriori informazioni sui package, visitare gli appositi `README.md`:
+- package `database`: [documentazione per package database](app/database/README.md)

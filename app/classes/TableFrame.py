@@ -12,11 +12,12 @@ class TableFrame(tk.Frame):
                  parent, 
                  table_headings, 
                  table_rows, 
-                 tbl_title, 
+                 tbl_title=None, 
                  row=0, column=0,
                  font_specs=(FT_family, FT_h1_size, 'bold'), 
                  columns_anchors_dict=None, 
-                 columns_sizes_dict=None):
+                 columns_sizes_dict=None,
+                 unwanted_headings=None):
         super(TableFrame,self).__init__(parent, bg=CC_frm_default)
         
         # istanza dello stile
@@ -44,6 +45,10 @@ class TableFrame(tk.Frame):
             background=[('active', CC_tbl_highlight), ('selected', CC_tbl_selected)],
             foreground=[('active', CC_tbl_text_highlight), ('selected', CC_tbl_text_selected), ('!active !selected', CC_tbl_text)]
         )
+        
+        # rimuove le colonne indesiderate
+        if unwanted_headings:
+            table_headings, table_rows = remove_headings(unwanted_headings, table_headings, table_rows)
         
         # attributi di classe
         self.parent = parent

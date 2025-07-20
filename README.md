@@ -6,7 +6,7 @@ Realizzare un’applicazione medica che fornisca, almeno, le seguenti possibilit
 - al paziente, l’acquisizione e relativa visualizzazione delle sue OCT per una migliore conservazione della sua documentazione sanitaria; 
 - al medico e al paziente, di estrarre e visualizzare informazioni sull’andamento di una patologia o, comunque, di uno status per cui è necessario un monitoraggio. 
 
-## Eseguire il progetto (Unix/macOs)
+## Eseguire il progetto (Linux/macOS)
 
 ````bash 
 # entrare nella cartella del progetto
@@ -36,15 +36,12 @@ OCT-Analysis
 │
 └── app
     │
-    │   # entry point
-    ├── main.py 
+    ├── main.py # entry point
     │
-    │   # assets
     ├── assets 
     │   └── app_logo.png
     │
-    │   # classi per la GUI Tkinter
-    ├── classes
+    ├── classes # classi per la GUI Tkinter
     │   ├── AddReportDialog.py
     │   ├── ImageCanvas.py
     │   ├── LoginFrame.py
@@ -55,34 +52,29 @@ OCT-Analysis
     │   ├── TableFrame.py
     │   └── TopBar.py
     │
-    │   # moduli di configurazione del progetto
-    ├── configs
+    ├── configs # moduli di configurazione del progetto
     │   ├── colors.py
     │   ├── fonts.py
     │   ├── paths.py
     │   ├── sizes.py
     │   └── tables.py
     │
-    │   # package per gestione del database
-    ├── database
+    ├── database # package per gestione del database
     │   ├── README.md
     │   ├── __init__.py
     │   ├── db_manager.py
     │   ├── query_parser.py
     │   │
-    │   │   # dati memorizzati
-    │   ├── data 
+    │   ├── data  # dati memorizzati
     │   │   ├── images/...
     │   │   └── octanalysis.db
     │   │
-    │   │   # file di query
-    │   └── queries
+    │   └── queries # file di query
     │       ├── create.sql
     │       ├── drop.sql
     │       ├── insert.sql
     │       └── select.sql
-    │
-    │   # utility
+    │   
     └── util
         └── funs.py
 ```

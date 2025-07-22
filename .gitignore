@@ -1,5 +1,5 @@
 __pycache__/
 *.csv
 .venv/
-app/database/data/images/*
+app/database/data/images/*.jpg
 app/database/data/octanalysis.db

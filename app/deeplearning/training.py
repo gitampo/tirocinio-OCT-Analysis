@@ -31,7 +31,7 @@ def load_train_eval_datasets():
     dataset = dataset.shuffle(seed=42)
 
     # split del dataset
-    dataset = dataset['train'].train_test_split(test_size=0.9)
+    dataset = dataset['train'].train_test_split(test_size=0.2)
     train_dataset = dataset['train']
     eval_dataset = dataset['test'].train_test_split(test_size=0.5)['test']
 

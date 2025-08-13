@@ -114,6 +114,7 @@ def get_args():
     return args
 
 def check_model_and_checkpoint(args):
+    if args.from_scratch: return
     if args.model != args.load.split('/')[0]:
         raise ValueError(f"Il modello '{args.model}' non corrisponde al checkpoint '{args.load}'")
 
@@ -141,4 +142,6 @@ def handle_args(args):
             for checkpoint in available_checkpoints():
                 print(f"- {checkpoint}")
             print('Info: usarli con il flag -l o --load (es. -l model/checkpoint)')
-    exit(0)
+
+    # se ha eseguito un comando termina l'esecuzione, altrimenti continua
+    if args.command: exit(0)

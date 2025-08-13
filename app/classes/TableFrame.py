@@ -3,7 +3,7 @@ from tkinter import ttk
 from configs.colors import *
 from configs.sizes import *
 from configs.fonts import *
-from util.funs import *
+from utils.funs import *
 from functools import reduce
 
 class TableFrame(tk.Frame):

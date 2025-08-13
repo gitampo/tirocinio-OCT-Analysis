@@ -4,7 +4,7 @@ from configs.colors import *
 from configs.fonts import *
 from configs.sizes import *
 from configs.paths import *
-from util.funs import * 
+from utils.funs import * 
 from database import db_manager
 from datetime import datetime
 from tkinter import filedialog, messagebox
@@ -184,7 +184,7 @@ class AddReportDialog(tk.Toplevel):
         })
 
         # copia il file nella cartella delle immagini
-        shutil.copy(submitted_image_path, Path(PT_images_dir)/image_filename)
+        shutils.copy(submitted_image_path, Path(PT_images_dir)/image_filename)
         
         # avvisa il padre del cambiamento
         self.parent.event_generate('<<AddDialogSuccess>>')

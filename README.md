@@ -74,8 +74,19 @@ OCT-Analysis
     │       ├── drop.sql
     │       ├── insert.sql
     │       └── select.sql
-    │   
-    └── util
+    │
+    ├── deeplearning # package per gestione dei modelli di DL
+    │   ├── checkpoints/...
+    │   ├── datasets/...
+    │   ├── models/... 
+    │   ├── __init__.py
+    │   ├── testing.py
+    │   ├── training.py
+    │   └── utils.py
+    │
+    └── utils # utility generica
+        ├── argparser.py
+        ├── print.py
         └── funs.py
 ```
 

@@ -6,7 +6,7 @@ from configs.tables import *
 from classes.TableFrame import *
 from classes.ImageCanvas import *
 from classes.AddReportDialog import *
-from util.funs import *
+from utils.funs import *
 
 class LoginFrame(tk.Frame):
     

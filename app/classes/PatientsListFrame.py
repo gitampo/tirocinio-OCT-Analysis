@@ -3,7 +3,7 @@ from configs.colors import *
 from configs.sizes import *
 from configs.fonts import *
 from configs.tables import *
-from util.funs import *
+from utils.funs import *
 from classes.TableFrame import *
 
 class PatientsListFrame(TableFrame):

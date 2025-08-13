@@ -1,6 +1,5 @@
-import pathlib
-from pathlib import Path
 import re
+from pathlib import Path
 
 def remove_tag(tag, tag_tuple):
     new_tag_tuple = tag_tuple

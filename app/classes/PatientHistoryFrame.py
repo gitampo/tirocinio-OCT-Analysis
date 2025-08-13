@@ -5,7 +5,7 @@ from configs.fonts import *
 from configs.tables import *
 from classes.TableFrame import *
 from classes.AddReportDialog import *
-from util.funs import *
+from utils.funs import *
 
 class PatientHistoryFrame(TableFrame):
     

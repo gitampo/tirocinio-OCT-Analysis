@@ -97,7 +97,7 @@ class PatientHistoryFrame(TableFrame):
                              pady=10)
         frm_container.grid(row=row, column=column, sticky='nswe')
         
-        # frame delld info del paziente
+        # frame delle info del paziente
         frm_info = tk.Frame(frm_container, 
                              bg=CC_frm_info,
                              padx=20, 

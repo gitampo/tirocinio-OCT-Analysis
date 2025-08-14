@@ -9,7 +9,7 @@ from PIL import Image, ImageTk
 
 class ImageCanvas(tk.Canvas):
     
-    def __init__(self, parent, image, width=None, height=None, alt=''):        
+    def __init__(self, parent, image, width=None, height=None, cursor='', alt=''):        
         super(ImageCanvas,self).__init__(parent)
 
         # controllo sull'esistenza dell'immagine
@@ -21,6 +21,7 @@ class ImageCanvas(tk.Canvas):
 
         # setup del canvas
         self.canvas = self.setupCanvas(width, height)
+        self.canvas.configure(cursor=cursor)
         
         # gestione del resize
         self.canvas.bind('<Configure>', self.resize_image)
@@ -40,7 +41,7 @@ class ImageCanvas(tk.Canvas):
     def resize_image(self, event):
         # controllo sulla presenza dell'immagine
         if not self.image: 
-            self.draw_not_found_text()
+            self.drawing_not_found_text()
             return
         
         # ottiene le dimensioni del canvas e dell'immagine
@@ -63,7 +64,7 @@ class ImageCanvas(tk.Canvas):
         self.canvas.create_image(left, top, image=tkPhotoImage, anchor='nw')
         self.canvas.image = tkPhotoImage # per evitare la perdita a causa del G.C.
         
-    def draw_not_found_text(self):
+    def drawing_not_found_text(self):
         # cancella scritte precedenti
         self.canvas.delete('all')
         

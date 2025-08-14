@@ -25,13 +25,13 @@ class PatientsListFrame(TableFrame):
         self.shared_data = None
         
         # associa l'apertura dello storico del paziente, all'evento del click sulla riga
-        self.tbl.bind('<Button-1>', self.alert_parent)
+        self.tbl.bind('<Button-1>', self.alert_parent_of_row_click)
         
         # configurazione di righe e colonne
         self.columnconfigure(0, weight=1)
         self.rowconfigure(0, weight=1)
 
-    def alert_parent(self, event):
+    def alert_parent_of_row_click(self, event):
         # se l'utente preme sull'heading, non deve fare niente
         region = self.tbl.identify_region(event.x, event.y)
         if region not in ('cell','tree'): return 

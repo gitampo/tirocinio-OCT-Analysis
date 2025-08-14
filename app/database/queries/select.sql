@@ -14,4 +14,6 @@ WHERE id == ?;
 SELECT * FROM doctors
 WHERE id == ?;
 
-
+@queryname:select_bscans_by_report_id
+SELECT * FROM bscans
+WHERE report == ?;

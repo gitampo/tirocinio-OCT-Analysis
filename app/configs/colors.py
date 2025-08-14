@@ -18,6 +18,7 @@ __CC_white_snow       = '#D6E4F3'
 __CC_gray             = "#777777"
 __CC_light_gray       = "#AAAAAA"
 __CC_blue_tech        = '#0065ff'
+__CC_green            = "#4bd700"
 
 # Palette di blu (dal più scuro al più chiaro)
 __CC_blue_900   = "#0A192F"   # quasi nero con sfumatura blu
@@ -34,7 +35,7 @@ __CC_blue_075   = "#87A3E0"   # azzurro pastello
 __CC_blue_050   = "#AFC7F3"   # azzurro molto chiaro per evidenziazioni
 
 # Colori speciali
-__CC_background  = __CC_blue_800
+__CC_background  = __CC_blue_700
 __CC_text        = __CC_white
 
 # app
@@ -100,3 +101,9 @@ CC_dlg_label_fg = __CC_white
 CC_dlg_label_bg = __CC_blue_500
 CC_dlg_value_fg = __CC_white
 CC_dlg_value_bg = __CC_blue_450
+
+# report
+CC_frm_report_bg = __CC_blue_800
+ 
+# progressbar
+CC_progressbar = __CC_green

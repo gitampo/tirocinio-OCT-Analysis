@@ -13,3 +13,7 @@ SZ_tbl_scroll_w = 18
 SZ_btn_login = 30
 SZ_logo_w = 300
 SZ_logo_h = 100
+SZ_bscan_preview_w = 300
+SZ_bscan_preview_h = 200
+SZ_bscan_preview_padx = 10
+SZ_bscan_preview_pady = 10

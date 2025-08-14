@@ -85,3 +85,17 @@ def add_report(report_dict):
     
     # aggiunta del report
     cursor.execute(queries['insert']['insert_report'], args)
+
+def get_bscans_of_report(report_id):
+    # prende la connessione e imposta row-factory e cursore
+    conn = get_connection()
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+
+    # B-scans per il report specificato
+    res = cursor.execute(queries['select']['select_bscans_by_report_id'], [report_id])
+
+    # ottiene un elenco di dizionari con i dati degli esami B-scan
+    bscans = res.fetchall()
+
+    return [dict(bscan) for bscan in bscans]

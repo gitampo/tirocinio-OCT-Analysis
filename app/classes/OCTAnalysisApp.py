@@ -163,12 +163,9 @@ class OCTAnalysisApp(tk.Tk):
         # ottiene i dati condivisi tramite evento se ce ne sono
         report_dict = event.widget.shared_data
         if report_dict is None or (not report_dict): return
-
-        # ottiene lo storico del paziente cercato
-        report_image_path = Path(PT_images_dir)/report_dict['oct']
         
         # istanzia il frame del report selezionato e lo porta in primo piano
-        frm_report = ReportFrame(self, report_image_path)
+        frm_report = ReportFrame(self, report_dict['id'])
         frm_report.grid(row=1, column=0, sticky='nswe')
         frm_report.tkraise()
         

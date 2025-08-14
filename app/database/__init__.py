@@ -15,14 +15,17 @@ with sqlite3.connect(PT_database) as connection:
     cursor.execute(queries['drop']['drop_patients'])
     cursor.execute(queries['drop']['drop_doctors'])
     cursor.execute(queries['drop']['drop_reports'])
+    cursor.execute(queries['drop']['drop_bscans'])
     
     # creazione delle tabelle
     cursor.execute(queries['create']['create_patients'])
     cursor.execute(queries['create']['create_doctors'])
     cursor.execute(queries['create']['create_reports'])
-    
+    cursor.execute(queries['create']['create_bscans'])
+
     # carica dati di mockup nel DB
     # todo: togliere questi 'insert' quando si toglieranno i dati di mockup
     cursor.execute(queries['insert']['insert_mockup_patients'])
     cursor.execute(queries['insert']['insert_mockup_doctors'])
     cursor.execute(queries['insert']['insert_mockup_reports'])
+    cursor.execute(queries['insert']['insert_mockup_bscans'])

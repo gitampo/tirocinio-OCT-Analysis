@@ -6,3 +6,6 @@ DROP TABLE IF EXISTS reports;
 
 @queryname:drop_doctors
 DROP TABLE IF EXISTS doctors;
+
+@queryname:drop_bscans
+DROP TABLE IF EXISTS bscans;

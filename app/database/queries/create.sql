@@ -12,8 +12,14 @@ CREATE TABLE IF NOT EXISTS reports (
     id INTEGER PRIMARY KEY,
     paziente INTEGER REFERENCES patients(id),
     data DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    descrizione VARCHAR(300) NOT NULL,
-    oct VARCHAR(255) NOT NULL
+    descrizione VARCHAR(300) NOT NULL
+);
+
+@queryname:create_bscans
+CREATE TABLE IF NOT EXISTS bscans (
+    id INTEGER PRIMARY KEY,
+    report INTEGER REFERENCES reports(id),
+    immagine VARCHAR(255) NOT NULL
 );
 
 @queryname:create_doctors

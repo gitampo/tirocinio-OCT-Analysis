@@ -89,7 +89,7 @@ CC_frm_info = __CC_blue_500
 CC_btn_text_primary = __CC_black
 CC_btn_primary = __CC_blue_050
 
-# dialog
+# dialog "aggiungi report"
 CC_dlg = __CC_background
 CC_dlg_text = __CC_white
 CC_dlg_field = __CC_blue_500
@@ -107,3 +107,6 @@ CC_frm_report_bg = __CC_blue_800
  
 # progressbar
 CC_progressbar = __CC_green
+
+# dialog
+CC_dlg_bscan_bg = __CC_black

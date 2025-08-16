@@ -8,6 +8,7 @@ from utils.funs import *
 from database import db_manager
 from datetime import datetime
 from tkinter import filedialog, messagebox
+from classes.ScrollableFrame import ScrollableFrame
 
 import os
 import shutil
@@ -31,26 +32,31 @@ class AddReportDialog(tk.Toplevel):
         # attributi di classe
         self.parent = parent
         self.patient_dict = patient_dict
-        self.entered_imagepath = None
-        
+        self.entered_imagepaths = []
+
         # imposta il layout (label, text, button...)
-        lbl_date_value, txt_description, lbl_image_value = self.setupLayout()        
+        frm_scrollable,  \
+        lbl_date_value,  \
+        txt_description, \
+        lbl_images_values = self.setupLayout()        
 
         # widget di classe
-        self.lbl_date_value = lbl_date_value 
-        self.txt_description = txt_description 
-        self.lbl_image_value = lbl_image_value
+        self.frm_scrollable = frm_scrollable
+        self.lbl_date_value = lbl_date_value
+        self.txt_description = txt_description
+        self.lbl_images_values = lbl_images_values
 
     def setupLayout(self):
         
         ### contenitori (frame)
         
         # frame contenitore (principalmente per background)
-        frm_container = tk.Frame(self, bg=CC_dlg)
-        
+        frm_scrollable = ScrollableFrame(self, bg=CC_dlg)
+
         # frame form
-        frm_form = tk.Frame(frm_container, bg=CC_dlg, padx=20, pady=20)
-               
+        frm_form = frm_scrollable.frm_container
+        frm_form.configure(padx=10, pady=10)
+
         # sotto-frame per i campi
         frm_data = tk.Frame(frm_form, bg=CC_dlg_field)
         frm_description = tk.Frame(frm_form, bg=CC_dlg_field)
@@ -63,7 +69,7 @@ class AddReportDialog(tk.Toplevel):
         lbl_patient_name_surname = self.setupLabel(frm_data, 'Nome e Cognome: ')
         lbl_date = self.setupLabel(frm_data, 'Data: ')
         lbl_description = self.setupLabel(frm_description, 'Descrizione: ')
-        lbl_image = self.setupLabel(frm_image, 'Immagine: ')
+        lbl_image = self.setupLabel(frm_image, 'Immagini: ')
         
         # dati mostrati (id, nome e cognome del paziente e data di inserimento del report)
         patient_id = str(self.patient_dict['id']).rjust(4,'0')
@@ -74,7 +80,7 @@ class AddReportDialog(tk.Toplevel):
         lbl_patient_id_value = self.setupValue(frm_data, f'{patient_id}')
         lbl_patient_name_surname_value = self.setupValue(frm_data, patient_name_surname)
         lbl_date_value = self.setupValue(frm_data, f'{time_now}')
-        lbl_image_value = self.setupValue(frm_image, '. . .')
+        lbl_images_values = [self.setupValue(frm_image, '. . .')]
         txt_description = tk.Text(frm_description, relief='flat', height=5)
         btn_image = tk.Button(frm_form, 
                             text='Inserisci immagine +', 
@@ -88,13 +94,14 @@ class AddReportDialog(tk.Toplevel):
                             fg=CC_btn_submit_fg, bg=CC_btn_submit_bg)
         
         ### posizionamento dei widget
-        
+
         # contenitori
-        frm_container.pack(fill='both', expand=True)
-        frm_form.pack(expand=True)
-        frm_data.pack(fill='x')
+        frm_scrollable.pack(fill='both', expand=True)
         frm_data.columnconfigure(1, weight=1)
-        
+        frm_data.pack(fill='x')
+        frm_description.pack(fill='x')
+        frm_image.pack(fill='x')
+
         # campi dei dati
         data_fields = [
             (lbl_patient_id, lbl_patient_id_value),
@@ -113,9 +120,9 @@ class AddReportDialog(tk.Toplevel):
         frm_description.pack(fill='x', pady=10)
         
         # immagine
-        lbl_image.pack(side='left', fill='x')
-        lbl_image_value.pack(side='left', fill='x', expand=True)
-        lbl_image_value['anchor'] = 'center'
+        lbl_image.pack(fill='x')
+        lbl_images_values[0].pack(fill='x')
+        lbl_images_values[0]['anchor'] = 'center'
         frm_image.pack(fill='x')
         
         # pulsante per l'immagine
@@ -123,9 +130,9 @@ class AddReportDialog(tk.Toplevel):
         
         # pulsante per l'invio dei dati
         btn_submit.pack(fill='x', pady=(30,10))
-        
-        return lbl_date_value, txt_description, lbl_image_value
-    
+
+        return frm_scrollable, lbl_date_value, txt_description, lbl_images_values
+
     def setupLabel(self, parent, text):
         return tk.Label(parent, 
             text=text, 
@@ -144,7 +151,7 @@ class AddReportDialog(tk.Toplevel):
             fg=CC_dlg_value_fg,
             bg=CC_dlg_value_bg,
             padx=5, pady=5)
-        
+    
     def centered_geometry(self,window_w, window_h):
         # dimensioni dello schermo
         screen_w = self.winfo_screenwidth()
@@ -161,30 +168,39 @@ class AddReportDialog(tk.Toplevel):
         # ottiene i valori di input
         submitted_date = self.lbl_date_value['text']
         submitted_description = self.txt_description.get('1.0','end-1c')
-        submitted_image_path = self.entered_imagepath
+        submitted_image_paths = self.entered_imagepaths
         
         # controlli sui dati di input
         if not submitted_description:
-            messagebox.showwarning('Attenzione!','È necessario inserire una descrizione al Report')
+            messagebox.showwarning('Attenzione!','È necessario inserire una descrizione al Report', parent=self)
             return
-        elif not submitted_image_path: 
-            messagebox.showwarning('Attenzione!','È necessario inserire un\'immagine di un OCT')
+        elif len(submitted_image_paths)==0: 
+            messagebox.showwarning('Attenzione!','È necessario inserire un\'immagine di un OCT', parent=self)
             return
-                
-        # controlla se il nome è già preso
-        image_filename = os.path.basename(submitted_image_path)
-        image_filename = get_available_filename(PT_images_dir, image_filename)
+
+        # lista dei nomi dei file bscan
+        bscans = []
+
+        # per ciascun file controlla se il nome è già preso
+        for submitted_image_path in submitted_image_paths:
+
+            # ottiene il nome del file 
+            image_filename = os.path.basename(submitted_image_path)
+            image_filename = get_available_filename(PT_images_dir, image_filename)
+
+            # aggiunge il nome del file alla lista
+            bscans.append(image_filename)
+
+            # copia il file nella cartella delle immagini
+            shutil.copy(submitted_image_path, Path(PT_images_dir)/image_filename)
 
         # aggiunta del nuovo report al database
         db_manager.add_report({
             'paziente':str(self.patient_dict['id']),
             'data':submitted_date,
             'descrizione':submitted_description,
-            'oct':image_filename,
-        })
-
-        # copia il file nella cartella delle immagini
-        shutils.copy(submitted_image_path, Path(PT_images_dir)/image_filename)
+            
+        }, bscans)
         
         # avvisa il padre del cambiamento
         self.parent.event_generate('<<AddDialogSuccess>>')
@@ -193,7 +209,8 @@ class AddReportDialog(tk.Toplevel):
         self.destroy()
     
     def add_image(self):
-        imagepath = filedialog.askopenfilename(
+        imagepaths = filedialog.askopenfilenames(
+            parent=self,
             title='Seleziona un immagine',
             filetypes=[
                 ('Tutti i file', '*.*'), 
@@ -202,15 +219,27 @@ class AddReportDialog(tk.Toplevel):
                 ('PNG', '*.png')
             ]
         )
-        if not imagepath: return
-                
-        # ottiene il nome e l'estensione del file
-        _, extension = os.path.splitext(imagepath)
-        
-        # se l'estensione è valida, accetta il file altrimenti mostra un alert
-        valid_extensions = ('.png','.jpg','.jpeg')
-        if(extension in valid_extensions):
-            self.entered_imagepath = imagepath
-            self.lbl_image_value['text'] = os.path.basename(self.entered_imagepath)
-        else:
-            messagebox.showwarning('File non valido!', f'Il File selezionato non è tra i seguenti formati:\n {" ".join(valid_extensions)}')
+        if not imagepaths: return
+
+        for imagepath in imagepaths:
+            # ottiene il nome e l'estensione del file
+            _, extension = os.path.splitext(imagepath)
+            
+            # se l'estensione è valida, accetta il file altrimenti mostra un alert
+            valid_extensions = ('.png','.jpg','.jpeg')
+            if(extension in valid_extensions):
+                self.entered_imagepaths.append(imagepath)
+                image_basename = os.path.basename(imagepath)
+
+                # se è il primo file, sostituisce il placeholder
+                if len(self.lbl_images_values) == 1 and self.lbl_images_values[0]['text'] == '. . .':
+                    self.lbl_images_values[0].destroy()
+                    self.lbl_images_values[0] = self.setupValue(self.lbl_images_values[0].master, image_basename)
+                    self.lbl_images_values[0].pack(fill='x')
+                else:
+                    self.lbl_images_values.append(self.setupValue(self.lbl_images_values[0].master, image_basename))
+                    self.lbl_images_values[-1].pack(fill='x')
+            else:
+                messagebox.showwarning('File non valido!', f'Il File selezionato non è tra i seguenti formati:\n {" ".join(valid_extensions)}', parent=self)
+
+        self.frm_scrollable.update_scrollregion()

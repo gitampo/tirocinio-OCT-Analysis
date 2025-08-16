@@ -71,7 +71,7 @@ def get_doctor(doctor_id):
     
     return doctor_dict
 
-def add_report(report_dict):
+def add_report(report_dict, bscan_list):
     # prende la connessione e imposta row-factory e cursore
     conn = get_connection()
     conn.row_factory = None
@@ -80,11 +80,15 @@ def add_report(report_dict):
     # dati del report da passare alla query
     args = [report_dict['paziente'],
             report_dict['data'],
-            report_dict['descrizione'],
-            report_dict['oct']]
-    
+            report_dict['descrizione']]
+
     # aggiunta del report
     cursor.execute(queries['insert']['insert_report'], args)
+    report_id = cursor.lastrowid
+    
+    # aggiunta dei B-scan relativi al report
+    for bscan in bscan_list:
+        cursor.execute(queries['insert']['insert_bscan'], [report_id, bscan])
 
 def get_bscans_of_report(report_id):
     # prende la connessione e imposta row-factory e cursore

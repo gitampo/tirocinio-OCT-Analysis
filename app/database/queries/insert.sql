@@ -1,6 +1,10 @@
 @queryname:insert_report
-INSERT INTO reports(paziente,data,descrizione,oct)
-VALUES (?, ?, ?, ?);
+INSERT INTO reports(paziente,data,descrizione)
+VALUES (?, ?, ?);
+
+@queryname:insert_bscan
+INSERT INTO bscans(report, immagine)
+VALUES (?, ?);
 
 @queryname:insert_mockup_patients
 INSERT INTO patients(id,nome,cognome,sesso,età)

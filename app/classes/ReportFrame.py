@@ -36,27 +36,13 @@ class ReportFrame(ScrollableFrame):
         fetched_bscans = get_bscans_of_report(report_id)
         bscans_images = [bscan['immagine'] for bscan in fetched_bscans]
 
-        # lista delle bscan caricate
-        self.loaded_bscans = []
-
         inputs_and_labels = []
 
         # aggiunge le anteprime delle bscan al frame container
         for bscan_image in tqdm(bscans_images):
 
+            # container per la bscan
             bscan_container = tk.Frame(self.frm_container, bg=CC_frm_report_bg)
-
-            # ottiene il path completo a partire dal nome del file
-            bscan_image_path = Path(PT_images_dir)/bscan_image
-            
-            # istanzia e posiziona l'immagine nel container
-            bscan_preview = ImageCanvas(
-                bscan_container,
-                bscan_image_path, 
-                width=SZ_bscan_preview_w, 
-                height=SZ_bscan_preview_h, 
-                cursor='hand2',
-                alt='Immagine bscan non trovata...')
 
             # label del filename
             lbl_filename = tk.Label(bscan_container, 
@@ -67,10 +53,24 @@ class ReportFrame(ScrollableFrame):
                                     pady=10)
             lbl_filename.pack(fill="x")
 
-            # aggiunge l'anteprima al container
+            # separatore
+            tk.Frame(bscan_container, height=3, bg=CC_bscan_separator).pack(fill="x")
+
+            # immagine bscan
+            bscan_image_path = Path(PT_images_dir)/bscan_image
+            bscan_preview = ImageCanvas(
+                bscan_container,
+                bscan_image_path, 
+                width=SZ_bscan_preview_w, 
+                height=SZ_bscan_preview_h, 
+                cursor='hand2',
+                alt='Immagine bscan non trovata...')
             bscan_preview.pack(fill="both", expand=True)
 
-            # label dell'inferenza
+            # separatore
+            tk.Frame(bscan_container, height=3, bg=CC_bscan_separator).pack(fill="x")
+
+            # label di previsione della malattia
             lbl_inference = tk.Label(bscan_container, 
                                      text=f"Nessuna previsione", 
                                      bg=CC_lbl_bscan_label_bg, 
@@ -78,11 +78,12 @@ class ReportFrame(ScrollableFrame):
                                      padx=10,
                                      pady=10)
             lbl_inference.pack(fill="x")
+
+            # lista di input e label (da usare per l'inferenza)
             inputs_and_labels += [(Image.open(bscan_image_path), lbl_inference)]
 
             # associa il click dell'anteprima all'apertura del dialog
             bscan_preview.bind("<Button-1>", self.on_bscan_click)
-            self.loaded_bscans.append(bscan_preview)
 
         inputs = [input for input, _ in inputs_and_labels]
         preds, probs = infer_disease(inputs)
@@ -101,15 +102,18 @@ class ReportFrame(ScrollableFrame):
         # ottiene il nome del file dell'immagine
         image_path = event.widget.image_path
 
+        widget_id =event.widget.winfo_id()
+        event.widget.master.configure(highlightthickness=1, highlightbackground=CC_dlg_bscan_highlight)
+
         # nuovo dialog con immagine bscan
-        if image_path not in self.opened_dialogs.keys():
-            dialog = BscanDialog(self, event.widget, image_path, lambda: self.opened_dialogs.pop(image_path, None))
+        if widget_id not in self.opened_dialogs.keys():
+            dialog = BscanDialog(self, event.widget.master, image_path, lambda: self.opened_dialogs.pop(widget_id, None))
 
             # aggiunge il path dell'immagine alla lista delle bscans aperte
-            self.opened_dialogs.update({image_path: dialog})
+            self.opened_dialogs.update({widget_id: dialog})
         else:
-            dialog = self.opened_dialogs[image_path]
-            dialog.lift()
+            dialog = next((v for k,v in self.opened_dialogs.items() if k == widget_id), None)
+            if dialog: dialog.lift()
 
         return "break"
 
@@ -146,15 +150,15 @@ class ReportFrame(ScrollableFrame):
         # scorre la lista di bscan per posizionarle tutte
         for index, bscan_preview in enumerate(self.frm_container.winfo_children()): 
 
-            # rimuove l'bscan-preview corrente dal layout grid
+            # rimuove la bscan-preview corrente dal layout grid
             bscan_preview.grid_forget()
 
             # calcola la posizione della preview
             row = index // num_of_columns
             column = index % num_of_columns
 
-            # posiziona l'bscan-preview nel layout grid nella nuova posizione
-            bscan_preview.grid(row=row, column=column, padx=SZ_bscan_preview_padx, pady=SZ_bscan_preview_pady)
+            # posiziona la bscan-preview nel layout grid nella nuova posizione
+            bscan_preview.grid(row=row, column=column, sticky='nswe', padx=SZ_bscan_preview_padx, pady=SZ_bscan_preview_pady)
         
         # aggiorna il numero di colonne salvate nell'istanza
         self.bscans_per_row = num_of_columns 

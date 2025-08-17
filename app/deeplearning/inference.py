@@ -1,4 +1,6 @@
 import torch
+from deeplearning import SEED
+from deeplearning.utils import set_seed
 from deeplearning.models import ViTMAE
 from pathlib import Path
 from configs.paths import PT_checkpoints_dir
@@ -10,6 +12,8 @@ def infer_disease(images):
     return infer_vitmae(checkpoint_to_load, images)
 
 def infer_vitmae(checkpoint_to_load, images):
+
+    set_seed(SEED)
 
     # guardia per il checkpoint
     if not Path(checkpoint_to_load).exists():

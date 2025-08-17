@@ -8,7 +8,10 @@ from configs.fonts import *
 from configs.paths import *
 from configs.tables import *
 from utils.funs import *
+from PIL import Image
 from database.db_manager import get_bscans_of_report
+from deeplearning.inference import infer_disease
+from tqdm import tqdm
 
 class ReportFrame(ScrollableFrame):
 
@@ -37,19 +40,44 @@ class ReportFrame(ScrollableFrame):
         self.loaded_bscans = []
 
         # aggiunge le anteprime delle bscan al frame container
-        for bscan_image in bscans_images:
+        for bscan_image in tqdm(bscans_images):
+
+            bscan_container = tk.Frame(self.frm_container, bg=CC_frm_report_bg)
 
             # ottiene il path completo a partire dal nome del file
             bscan_image_path = Path(PT_images_dir)/bscan_image
             
             # istanzia e posiziona l'immagine nel container
             bscan_preview = ImageCanvas(
-                self.frm_container,
+                bscan_container,
                 bscan_image_path, 
                 width=SZ_bscan_preview_w, 
                 height=SZ_bscan_preview_h, 
                 cursor='hand2',
                 alt='Immagine bscan non trovata...')
+
+            # label del filename
+            lbl_filename = tk.Label(bscan_container, 
+                                    text=bscan_image, 
+                                    bg=CC_lbl_bscan_label_bg, 
+                                    fg=CC_lbl_bscan_label_fg,
+                                    padx=10,
+                                    pady=10)
+            lbl_filename.pack(fill="x")
+
+            # aggiunge l'anteprima al container
+            bscan_preview.pack(fill="both", expand=True)
+
+            # label dell'inferenza
+            bscan_image = [Image.open(bscan_image_path)]
+            inferred_disease, probability = infer_disease(bscan_image)
+            lbl_inference = tk.Label(bscan_container, 
+                                     text=f"{inferred_disease} con {probability:.2f}% di probabilità", 
+                                     bg=CC_lbl_bscan_label_bg, 
+                                     fg=CC_lbl_bscan_label_fg,
+                                     padx=10,
+                                     pady=10)
+            lbl_inference.pack(fill="x")
 
             # associa il click dell'anteprima all'apertura del dialog
             bscan_preview.bind("<Button-1>", self.on_bscan_click)

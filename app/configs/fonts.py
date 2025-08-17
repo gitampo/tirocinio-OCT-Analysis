@@ -1,6 +1,6 @@
 ### Modulo per la configurazione del font (FT = Font)
 
-FT_family = '' # '' = system default
+FT_family = 'courier' # '' = system default
 FT_size = 12
 FT_appname_size = 30
 FT_h1_size = 24

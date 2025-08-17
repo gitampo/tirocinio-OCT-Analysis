@@ -10,7 +10,6 @@ from utils.funs import *
 class PatientHistoryFrame(TableFrame):
     
     def __init__(self, parent, table_headings, table_rows, patient_dict, viewtype = 'doctor'):
-       
         
         # supercostruttore
         super(PatientHistoryFrame,self).__init__(

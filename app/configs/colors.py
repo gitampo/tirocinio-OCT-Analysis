@@ -108,5 +108,10 @@ CC_frm_report_bg = __CC_blue_800
 # progressbar
 CC_progressbar = __CC_green
 
-# dialog
+# bscan label
+CC_lbl_bscan_label_bg = __CC_blue_500
+CC_lbl_bscan_label_fg = __CC_white
+
+# bscan dialog
 CC_dlg_bscan_bg = __CC_black
+CC_dlg_bscan_highlight = __CC_blue_100

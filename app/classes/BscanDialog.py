@@ -16,7 +16,7 @@ class BscanDialog(tk.Toplevel):
         self.transient(parent)
 
         # imposta il chiamante
-        caller.configure(highlightthickness=1)
+        caller.configure(highlightthickness=1, highlightcolor=CC_dlg_bscan_highlight, highlightbackground=CC_dlg_bscan_highlight)
         self.caller = caller
 
         # funzione di callback per la chiusura del dialog

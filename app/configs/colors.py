@@ -40,6 +40,7 @@ __CC_text        = __CC_white
 
 # app
 CC_appname_fg = __CC_blue_tech
+CC_background = __CC_background
 
 # login
 CC_btn_login_fg = __CC_black

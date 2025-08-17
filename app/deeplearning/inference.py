@@ -15,6 +15,9 @@ def infer_vitmae(checkpoint_to_load, images):
     if not Path(checkpoint_to_load).exists():
         raise FileNotFoundError(f"Checkpoint non trovato: '{checkpoint_to_load}'")
 
+    # guardia per il numero di immagini
+    if images is None or len(images) == 0: return
+
     # caricamento del modello
     model = ViTMAE.ViTMAEForImageClassification()
     model.load_state_dict(torch.load(checkpoint_to_load))
@@ -38,6 +41,6 @@ def infer_vitmae(checkpoint_to_load, images):
         outputs = model(inputs)
         logits = outputs['logits']
         probs = logits.softmax(dim=-1)
-        predicted_class = probs.argmax(dim=-1).item()
-        
-        return disease_map[predicted_class], probs.max().item()*100
+        preds = probs.argmax(dim=-1)
+
+        return [disease_map[pred] for pred in preds], list(probs.max(dim=-1).values*100)

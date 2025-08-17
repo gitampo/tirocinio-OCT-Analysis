@@ -39,6 +39,8 @@ class ReportFrame(ScrollableFrame):
         # lista delle bscan caricate
         self.loaded_bscans = []
 
+        inputs_and_labels = []
+
         # aggiunge le anteprime delle bscan al frame container
         for bscan_image in tqdm(bscans_images):
 
@@ -69,19 +71,24 @@ class ReportFrame(ScrollableFrame):
             bscan_preview.pack(fill="both", expand=True)
 
             # label dell'inferenza
-            bscan_image = [Image.open(bscan_image_path)]
-            inferred_disease, probability = infer_disease(bscan_image)
             lbl_inference = tk.Label(bscan_container, 
-                                     text=f"{inferred_disease} con {probability:.2f}% di probabilità", 
+                                     text=f"Nessuna previsione", 
                                      bg=CC_lbl_bscan_label_bg, 
                                      fg=CC_lbl_bscan_label_fg,
                                      padx=10,
                                      pady=10)
             lbl_inference.pack(fill="x")
+            inputs_and_labels += [(Image.open(bscan_image_path), lbl_inference)]
 
             # associa il click dell'anteprima all'apertura del dialog
             bscan_preview.bind("<Button-1>", self.on_bscan_click)
             self.loaded_bscans.append(bscan_preview)
+
+        inputs = [input for input, _ in inputs_and_labels]
+        preds, probs = infer_disease(inputs)
+
+        for (pred, prob, (_, lbl_inference)) in zip(preds, probs, inputs_and_labels):
+            lbl_inference.config(text=f"{pred} con {prob:.2f}% di probabilità")
 
         # proprietà del canvas
         self.bscans_per_row = None

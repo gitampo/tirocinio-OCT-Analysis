@@ -94,3 +94,11 @@ OCT-Analysis
 ## Informazioni sui Package del progetto
 Per ulteriori informazioni sui package, visitare gli appositi `README.md`:
 - package `database`: [documentazione per package database](app/database/README.md)
+- package `deeplearning`: [documentazione per package deeplearning](app/deeplearning/README.md)
+- package `utils`: [documentazione per package utils (argparser)](app/utils/README.md)
+
+## Note uteriori
+Potrebbe essere necessario installare una versione di pytorch-cuda adatta al proprio dispositivo.
+Per questo si rimanda al sito di NVIDIA: [CUDA GPU Compute Capability](https://developer.nvidia.com/cuda-gpus). 
+
+Nota la Compute Capability (CC), dovrebbe essere possibile identificare la versione di pytorch-cuda più adatta.

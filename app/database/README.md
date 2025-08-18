@@ -47,7 +47,7 @@ queries['select']['select_all_patients']
 
 ## Struttura del package `database`
 ```bash
-database/
+database
 │ 
 ├── README.md
 │
@@ -57,11 +57,11 @@ database/
 │
 ├── query_parser.py     ## parser dei file delle query
 │
-├── data/               ## cartella per memorizzazione dati
+├── data                ## cartella per memorizzazione dati
 │   ├── images/...
 │   └── octanalysis.db
 │
-└── queries/            ## cartella con i file di query
+└── queries             ## cartella con i file di query
     ├── create.sql
     ├── insert.sql
     ├── select.sql

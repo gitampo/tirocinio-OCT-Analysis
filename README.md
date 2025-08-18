@@ -12,12 +12,12 @@ Realizzare un’applicazione medica che fornisca, almeno, le seguenti possibilit
 # entrare nella cartella del progetto
 cd OCT-Analysis/
 
-# (opzionale) spostarsi in un ambiente virtuale
-python -m venv .venv
-source .venv/bin/activate
+# creare l'env-conda (usare mamba alternativamente)
+# N.B. la creazione è necessaria solo una volta 
+conda env create -f environment.yml
 
-# installare le dipendenze
-pip install -r requirements.txt
+# attivare l'env-conda
+conda activate OCT-Analysis
 
 # entrare nella cartella app/
 cd app/

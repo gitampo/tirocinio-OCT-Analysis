@@ -80,6 +80,7 @@ OCT-Analysis
     │   ├── datasets/...
     │   ├── models/... 
     │   ├── __init__.py
+    │   ├── inference.py
     │   ├── testing.py
     │   ├── training.py
     │   └── utils.py

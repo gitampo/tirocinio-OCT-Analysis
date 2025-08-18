@@ -114,7 +114,7 @@ def get_args():
     return args
 
 def check_model_and_checkpoint(args):
-    if args.from_scratch: return
+    if not args.load: return
     if args.model != args.load.split('/')[0]:
         raise ValueError(f"Il modello '{args.model}' non corrisponde al checkpoint '{args.load}'")
 

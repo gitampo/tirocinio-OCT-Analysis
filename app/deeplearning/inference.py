@@ -7,11 +7,11 @@ from configs.paths import PT_checkpoints_dir
 
 def infer_disease(images):
     # caricamento del checkpoint
-    checkpoint_to_load = Path(PT_checkpoints_dir)/"vitmae"/"vitmae-augmented.pth"
+    checkpoint_to_load = Path(PT_checkpoints_dir)/"vitmae-light"/"vitmae-light.pth"
 
     return infer_vitmae(checkpoint_to_load, images)
 
-def infer_vitmae(checkpoint_to_load, images):
+def infer_vitmae(checkpoint_to_load, images, type='light'):
 
     set_seed(SEED)
 
@@ -22,8 +22,12 @@ def infer_vitmae(checkpoint_to_load, images):
     # guardia per il numero di immagini
     if images is None or len(images) == 0: return
 
+    # istanze dei modelli
+    heavy = ViTMAE.ViTMAEForImageClassification_heavy()
+    light = ViTMAE.ViTMAEForImageClassification_light()
+
     # caricamento del modello
-    model = ViTMAE.ViTMAEForImageClassification()
+    model = heavy if type == 'heavy' else light
     model.load_state_dict(torch.load(checkpoint_to_load))
 
     # impostazione del modello in modalità di valutazione

@@ -8,8 +8,8 @@ config = ViTMAEConfig.from_pretrained("facebook/vit-mae-base")
 # Processor per le immagini
 processor = ViTImageProcessor.from_pretrained('facebook/vit-mae-base')
 
-# ViTMAE per la classificazione delle immagini
-class ViTMAEForImageClassification(torch.nn.Module):
+# ViTMAE per la classificazione delle immagini (head pesante)
+class ViTMAEForImageClassification_heavy(torch.nn.Module):
     def __init__(self, num_labels=7):
         super().__init__()
 
@@ -38,7 +38,38 @@ class ViTMAEForImageClassification(torch.nn.Module):
 
     def compute_loss(self, logits, labels):
         return torch.nn.functional.cross_entropy(logits, labels)
-    
+
+# ViTMAE per la classificazione delle immagini (head leggera)
+class ViTMAEForImageClassification_light(torch.nn.Module):
+    def __init__(self, num_labels=7):
+        super().__init__()
+
+        self.backbone = ViTMAEModel.from_pretrained("facebook/vit-mae-base")
+        self.classifier = torch.nn.Sequential(
+            torch.nn.Linear(self.backbone.config.hidden_size, 128),
+            torch.nn.ReLU(),
+            torch.nn.Dropout(0.2),
+            torch.nn.Linear(128,128),
+            torch.nn.ReLU(),
+            torch.nn.Dropout(0.2),
+            torch.nn.Linear(128, num_labels)
+        )
+
+    def freeze_backbone(self):
+        for param in self.backbone.parameters():
+            param.requires_grad = False
+
+    def forward(self, pixel_values, labels=None):
+        outputs = self.backbone(pixel_values)
+        logits = self.classifier(outputs.last_hidden_state[:, 0])
+        loss = None
+        if labels is not None:
+            loss = self.compute_loss(logits, labels)
+        return {"loss": loss, "logits": logits}
+
+    def compute_loss(self, logits, labels):
+        return torch.nn.functional.cross_entropy(logits, labels)
+
 # Funzione di preprocessing per le immagini
 def preprocess_batch(examples):
     global processor

@@ -1,7 +1,7 @@
 import sys
 import torch
 import datasets
-from pathlib import Path
+from transformers import Trainer, TrainingArguments
 
 from . import AVAILABLE_MODELS, SEED
 from .models import ViTMAE
@@ -20,8 +20,10 @@ def test(model, checkpoint_name):
         raise ValueError(f"Modello '{model}' non disponibile")
 
     # controllo sul tipo di modello
-    if model == 'vitmae':
-        test_vitmae(checkpoint_to_load)
+    if model == 'vitmae-light':
+        test_vitmae_new(checkpoint_to_load, type='light')
+    elif model == 'vitmae-heavy':
+        test_vitmae_new(checkpoint_to_load, type='heavy')
     else:
         raise NotImplementedError(f"Testing non implementato per il modello '{model}'")
 
@@ -34,7 +36,7 @@ def print_legend():
     print("Info: per ogni malattia sono stampate le probabilità di classificazione")
     print("-------------------------------------------------------------------------")
 
-def load_test_dataset(seed=SEED):
+def load_test_dataset(seed=SEED, batched=True):
     # caricamento e shuffle del dataset
     dataset = datasets.load_dataset("imagefolder", data_dir=PT_testing_dataset_dir)
     dataset = dataset.shuffle(seed=seed)
@@ -45,12 +47,13 @@ def load_test_dataset(seed=SEED):
 
     # preprocessing dei dati
     tot_examples = original_test_dataset.num_rows
-    test_dataset_preprocessed = original_test_dataset.map(ViTMAE.preprocess_batch, batched=True, batch_size=4, num_proc=5)
-    test_dataset_batched = test_dataset_preprocessed.batch(batch_size=8, num_proc=5)
+    test_dataset = original_test_dataset.map(ViTMAE.preprocess_batch, batched=True, batch_size=4, num_proc=5)
+    if batched: test_dataset = test_dataset.batch(batch_size=8, num_proc=5)
 
-    return test_dataset_batched, tot_examples
+    return test_dataset, tot_examples
 
-def test_vitmae(checkpoint_to_load):
+# TODO: probabilmente non servirà più e andrà rimosso successivamente, insieme a print_legend()
+def old_test_vitmae(checkpoint_to_load, type='heavy'):
 
     # impostazione del seed per la riproducibilità
     set_seed(SEED)
@@ -58,8 +61,12 @@ def test_vitmae(checkpoint_to_load):
     # caricamento del dataset di test
     test_dataset_batched, tot_examples = load_test_dataset(seed=SEED)
 
+    # possibili tipi di vitmae
+    heavy_model = ViTMAE.ViTMAEForImageClassification_heavy()
+    light_model = ViTMAE.ViTMAEForImageClassification_light()
+
     # caricamento del modello
-    model = ViTMAE.ViTMAEForImageClassification()
+    model = heavy_model if type == 'heavy' else light_model
     model.load_state_dict(torch.load(checkpoint_to_load))
 
     # impostazione del modello in modalità di valutazione
@@ -125,3 +132,45 @@ def test_vitmae(checkpoint_to_load):
         print_legend()
         print(BLD + f"Predizioni corrette: {tot_correct} / {tot_examples}" + RST)
         print(BLD + f"Accuratezza: {tot_correct / tot_examples * 100:.2f}%" + RST)
+
+def test_vitmae(checkpoint_to_load, type='heavy'):
+
+    # impostazione del seed per la riproducibilità
+    set_seed(SEED)
+
+    # caricamento del dataset di test
+    test_dataset, _ = load_test_dataset(seed=SEED, batched=False)
+
+    # possibili tipi di vitmae
+    heavy_model = ViTMAE.ViTMAEForImageClassification_heavy()
+    light_model = ViTMAE.ViTMAEForImageClassification_light()
+
+    # caricamento del modello
+    model = heavy_model if type == 'heavy' else light_model
+    model.load_state_dict(torch.load(checkpoint_to_load))
+
+    def compute_metrics(eval_pred):
+        from sklearn.metrics import accuracy_score, balanced_accuracy_score
+        logits, labels = eval_pred
+        preds = logits.argmax(axis=-1)
+        return {
+            "accuracy": accuracy_score(labels, preds),
+            "balanced_accuracy": balanced_accuracy_score(labels, preds)
+        }
+
+    trainer = Trainer(
+        model=model,
+        args=TrainingArguments(
+            per_device_eval_batch_size=8, 
+            do_eval=True, do_train=False),
+        compute_metrics=compute_metrics,
+    )
+
+    metrics = trainer.evaluate(test_dataset)
+
+    for k,v in metrics.items():
+        k = k.replace("_", " ").replace("eval ", "").capitalize()
+        if k=="Accuracy" or k=="Balanced accuracy": 
+            print(f"{k}: {v*100:.2f}%")
+        else:
+            print(f"{k}: {v}")

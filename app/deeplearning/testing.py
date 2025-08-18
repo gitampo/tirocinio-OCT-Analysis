@@ -21,9 +21,9 @@ def test(model, checkpoint_name):
 
     # controllo sul tipo di modello
     if model == 'vitmae-light':
-        test_vitmae_new(checkpoint_to_load, type='light')
+        test_vitmae(checkpoint_to_load, type='light')
     elif model == 'vitmae-heavy':
-        test_vitmae_new(checkpoint_to_load, type='heavy')
+        test_vitmae(checkpoint_to_load, type='heavy')
     else:
         raise NotImplementedError(f"Testing non implementato per il modello '{model}'")
 

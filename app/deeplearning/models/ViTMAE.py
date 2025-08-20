@@ -1,12 +1,36 @@
 import torch
 from torchvision import transforms
 from transformers import AutoModel, ViTImageProcessor, ViTMAEModel, ViTMAEConfig
+from transformers import TrainingArguments
+from configs.paths import PT_checkpoints_dir, PT_trainer_output_dir
 
 # Configurazione del modello
 config = ViTMAEConfig.from_pretrained("facebook/vit-mae-base")
 
 # Processor per le immagini
 processor = ViTImageProcessor.from_pretrained('facebook/vit-mae-base')
+
+# lista delle callbacks da passare al trainer di vitmae
+vitmae_callbacks = [
+    # EarlyStoppingCallback(early_stopping_patience=3)
+]
+
+# configurazione degli argomenti da passare al trainer di vitmae
+vitmae_training_args = TrainingArguments(
+    output_dir=PT_trainer_output_dir,
+    per_device_train_batch_size=8,
+    per_device_eval_batch_size=8,
+    save_strategy="epoch",
+    eval_strategy="epoch",
+    logging_steps=100,
+    num_train_epochs=1,
+    load_best_model_at_end=False,
+    metric_for_best_model="accuracy"
+)
+
+
+# ----------------------------------------------------------------------------
+# ----------------------------------------------------------------------------
 
 # ViTMAE per la classificazione delle immagini (head pesante)
 class ViTMAEForImageClassification_heavy(torch.nn.Module):
@@ -39,6 +63,8 @@ class ViTMAEForImageClassification_heavy(torch.nn.Module):
     def compute_loss(self, logits, labels):
         return torch.nn.functional.cross_entropy(logits, labels)
 
+# ----------------------------------------------------------------------------
+
 # ViTMAE per la classificazione delle immagini (head leggera)
 class ViTMAEForImageClassification_light(torch.nn.Module):
     def __init__(self, num_labels=7):
@@ -70,6 +96,9 @@ class ViTMAEForImageClassification_light(torch.nn.Module):
     def compute_loss(self, logits, labels):
         return torch.nn.functional.cross_entropy(logits, labels)
 
+# ----------------------------------------------------------------------------
+# ----------------------------------------------------------------------------
+
 # Funzione di preprocessing per le immagini
 def preprocess_batch(examples):
     global processor
@@ -93,3 +122,9 @@ def augment(examples):
     # augmentation dei dati di addestramento
     examples['image'] = [transform(image.convert('RGB')) for image in examples['image']]
     return examples   
+
+def vitmae_compute_metrics(eval_pred):
+    predictions, labels = eval_pred
+    predictions = predictions.argmax(axis=-1)
+    acc = (predictions == labels).mean()
+    return {"accuracy": acc}

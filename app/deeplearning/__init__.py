@@ -1,30 +1,12 @@
-from transformers import TrainingArguments, EarlyStoppingCallback
-from configs.paths import PT_trainer_output_dir
-
+# configurazione delle variabili del package
 AVAILABLE_MODELS = ['vitmae-light', 'vitmae-heavy']
-SEED = 42
 
-# configurazione degli argomenti da passare al trainer di vitmae
-vitmae_training_args = TrainingArguments(
-    output_dir=PT_trainer_output_dir,
-    per_device_train_batch_size=8,
-    per_device_eval_batch_size=8,
-    save_strategy="epoch",
-    eval_strategy="epoch",
-    logging_steps=100,
-    num_train_epochs=20,
-    load_best_model_at_end=False,
-    metric_for_best_model="accuracy"
-)
+DEFAULT_DATASET = 'OCTDL'
+DEFAULT_SPLIT = (0.8, 0.1, 0.1)  # train, eval, test split
 
-# lista delle callbacks da passare al trainer di vitmae
-vitmae_callbacks = [
-    # EarlyStoppingCallback(early_stopping_patience=3)
-]
+PREPROCESS_BATCH_SIZE = 8
+TRAIN_BATCH_SIZE = 8
+TEST_BATCH_SIZE = 8
 
-# metriche da passare al trainer di vitmae
-def vitmae_compute_metrics(eval_pred):
-    predictions, labels = eval_pred
-    predictions = predictions.argmax(axis=-1)
-    acc = (predictions == labels).mean()
-    return {"accuracy": acc}
+NUM_PROC = 5 # numero di processi per il data loading
+SEED = 42 # fissare il seed per la riproducibilità

@@ -1,79 +1,122 @@
-from pathlib import Path
 import torch
-import datasets
 from transformers import Trainer
+from pathlib import Path
+import re
 
-from .utils import get_checkpoint_from_name
-from .models import ViTMAE
-from configs.paths import *
-from . import *
+from . import (
+    DEFAULT_DATASET,
+    DEFAULT_SPLIT,
+    NUM_PROC,
+    PREPROCESS_BATCH_SIZE,
+)
+from .model_factory import load_training_args, load_model
+from configs.paths import PT_checkpoints_dir
+from utils.print import (
+    print_separator, 
+    print_warning, 
+    print_success, 
+    print_log,
+    print_success_box
+)
+from .utils import (
+    get_checkpoint_path,
+    load_dataset_from_name
+)
 
-def train(model, checkpoint_name=None):
-    checkpoint_to_load = None
 
-    # trova i checkpoints a partire dal nome (se inseriti)
-    if checkpoint_name:
-        checkpoint_to_load = get_checkpoint_from_name(checkpoint_name)
+def ask_checkpoint_name(model_name):
+    # dichiarazione variabili per il salvataggio del checkpoint
+    new_checkpoint_name = ''
+    new_checkpoint_path = ''
+    continue_checking = True
+    wants_to_overwrite = False
 
-    # controlla se il modello scelto è disponibile
-    if model not in AVAILABLE_MODELS:
-        raise ValueError(f"Modello '{model}' non disponibile")
+    # ciclo di controllo sulla scelta del nome del checkpoint
+    while continue_checking:
+        # chiede il nome del nuovo checkpoint
+        print_separator()
+        print("Come chiami il checkpoint in cui salvare l'allenamento?")
+        print("Nome del nuovo checkpoint: "+ f" {model_name}/", end="")
+        user_input = input().strip()
 
-    # controllo sul tipo di modello
-    if model == 'vitmae-light':
-        train_vitmae(checkpoint_to_load, type='light')
-    elif model == 'vitmae-heavy':
-        train_vitmae(checkpoint_to_load, type='heavy')
-    else:
-        raise NotImplementedError(f"Training non implementato per il modello '{model}'")
+        # costruzione del nome e del percorso del checkpoint
+        new_checkpoint_name = f"{model_name}/{user_input}"
+        new_checkpoint_path = Path(PT_checkpoints_dir) / (new_checkpoint_name + '.pth')
 
-def load_train_eval_datasets():
-    # caricamento e shuffle del dataset
-    dataset = datasets.load_dataset("imagefolder", data_dir=PT_testing_dataset_dir)
-    dataset = dataset.shuffle(seed=42)
+        # controlla che il nome del checkpoint sia valido
+        if not re.match(r'^[a-zA-Z0-9_-]+$', user_input):
+            print_warning("Nome del checkpoint non valido. Caratteri ammessi: [a-zA-Z0-9_-]")
+            print_warning("Riprova (INVIO)...", end="")
+            input()
+            continue
 
-    # split del dataset
-    dataset = dataset['train'].train_test_split(test_size=0.2)
-    train_dataset = dataset['train']
-    eval_dataset = dataset['test'].train_test_split(test_size=0.5)['test']
+        # controlla se il checkpoint esiste già
+        if new_checkpoint_path in (Path(PT_checkpoints_dir) / model_name).iterdir():
+            print_warning("Esiste già un checkpoint con questo nome.")
+            print_warning("Vuoi sovrascriverlo? (s/n): ", end="")
+            overwrite_answer = input().strip().lower()
+
+            # termina il controllo e sovrascrive il checkpoint
+            if overwrite_answer == 's':
+                wants_to_overwrite = True
+                continue_checking = False
+        else: 
+            continue_checking = False
+    print_separator()
+
+    return new_checkpoint_name, new_checkpoint_path, wants_to_overwrite
+
+def train(model_name, checkpoint_name=None, dataset_name=DEFAULT_DATASET, dataset_split=DEFAULT_SPLIT, from_scratch=True):
+    
+    # caricamento del modello e degli argomenti di training
+    model = load_model(model_name)
+
+    # caricamento degli argomenti di training
+    training_args,   \
+    compute_metrics, \
+    callbacks,       \
+    train_preprocess = load_training_args(model_name)
+
+    # caricamento del checkpoint
+    if (checkpoint_name) and (not from_scratch):
+        print(f"Caricamento del checkpoint '{checkpoint_name}' per il modello '{model_name}'...")
+        checkpoint_path = get_checkpoint_path(model_name, checkpoint_name)
+        model.load_state_dict(torch.load(checkpoint_path, weights_only=True))
+    elif (not checkpoint_name) and (not from_scratch):
+        raise ValueError("Nessun checkpoint da caricare e non si sta addestrando da zero.")
+    elif from_scratch:
+        pass # TODO: inizializzare i pesi, ViTMAE non ne ha bisogno perché è pretrained
+
+    # caricamento del dataset
+    print_log(f"Caricamento del dataset '{dataset_name}'...")
+    dataset = load_dataset_from_name(dataset_name, dataset_split)
 
     # preprocessing dei dati
-    train_dataset_preprocessed = train_dataset.map(ViTMAE.augment, batched=True, batch_size=4, num_proc=5)
-    train_dataset_preprocessed = train_dataset.map(ViTMAE.preprocess_batch, batched=True, batch_size=4, num_proc=5)
-    eval_dataset_preprocessed = eval_dataset.map(ViTMAE.preprocess_batch, batched=True, batch_size=4, num_proc=5)
+    print_log("Preprocessing dei dati...")
+    dataset = dataset.map(train_preprocess, batched=True, batch_size=PREPROCESS_BATCH_SIZE, num_proc=NUM_PROC)
 
-    return train_dataset_preprocessed, eval_dataset_preprocessed
-
-def train_vitmae(checkpoint_to_load=None, type='heavy'):
-
-    # richiesta del nome del modello
-    print("Dai un nome al modello: ", end="")
-    model_name = input().strip()
-
-    # caricamento dei dataset preprocessati
-    train_dataset, eval_dataset = load_train_eval_datasets()
-
-    # possibili tipi di vitmae
-    heavy_model = ViTMAE.ViTMAEForImageClassification_heavy()
-    light_model = ViTMAE.ViTMAEForImageClassification_light()
-
-    # caricamento del modello
-    model = heavy_model if type == 'heavy' else light_model
-    if checkpoint_to_load and Path(checkpoint_to_load).exists():
-        model.load_state_dict(torch.load(checkpoint_to_load))
-
-    # configurazione del training
+    # creazione del trainer
     trainer = Trainer(
         model=model,
-        args=vitmae_training_args,
-        train_dataset=train_dataset,
-        eval_dataset=eval_dataset,
-        compute_metrics=vitmae_compute_metrics,
-        callbacks=vitmae_callbacks
+        args=training_args,
+        train_dataset=dataset['train'],
+        eval_dataset=dataset['eval'],
+        compute_metrics=compute_metrics,
+        callbacks=callbacks
     )
 
     # training vero e proprio
+    print_log("Inizio del training...")
     trainer.train()
+    print_success_box("Training completato!")
 
-    # salvataggio del modello addestrato
-    torch.save(trainer.model.state_dict(), Path(PT_checkpoints_dir) / f'vitmae-{type}' / (model_name + '.pth'))
+    # ottiene il nome da dare al checkpoint
+    new_checkpoint_name, \
+    new_checkpoint_path, \
+    wants_to_overwrite = ask_checkpoint_name(model_name)
+
+    # salvataggio del checkpoint
+    message = "Sovrascrittura del checkpoint..." if wants_to_overwrite else "Salvataggio del nuovo checkpoint..."
+    print_log(message)
+    torch.save(trainer.model.state_dict(), new_checkpoint_path) # salvataggio del modello addestrato
+    print_success(f"Checkpoint salvato come: {new_checkpoint_name}")

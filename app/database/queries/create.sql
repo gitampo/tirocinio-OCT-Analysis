@@ -12,7 +12,8 @@ CREATE TABLE IF NOT EXISTS reports (
     id INTEGER PRIMARY KEY,
     paziente INTEGER REFERENCES patients(id),
     data DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    descrizione VARCHAR(300) NOT NULL
+    descrizione VARCHAR(300) NOT NULL,
+    creato_il TIMESTAMP DEFAULT (strftime('%Y-%m-%d %H:%M:%f', 'now')) NOT NULL
 );
 
 @queryname:create_bscans

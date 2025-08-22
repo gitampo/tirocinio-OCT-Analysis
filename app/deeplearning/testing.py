@@ -9,7 +9,7 @@ from . import (
     PREPROCESS_BATCH_SIZE,
     TEST_BATCH_SIZE
 )
-from .model_factory import load_model, get_test_preprocess
+from .model_factory import load_model, get_preprocessor
 from utils.print import (
     print_success_box, 
     print_separator,
@@ -18,7 +18,7 @@ from utils.print import (
 from .utils import ( 
     get_checkpoint_path,   
     load_dataset_from_name,      
-    set_seed        
+    set_seed 
 )            
 
 # funzione di calcolo delle metriche di valutazione del modello
@@ -38,7 +38,7 @@ def test(model_name, checkpoint_name, dataset_name=DEFAULT_DATASET, dataset_spli
 
     # caricamento del modello e del preprocess
     model = load_model(model_name)
-    preprocess = get_test_preprocess(model_name)
+    preprocessor = get_preprocessor(model_name)
 
     # caricamento del checkpoint
     print(f"Caricamento del checkpoint '{checkpoint_name}' per il modello '{model_name}'...")
@@ -51,7 +51,7 @@ def test(model_name, checkpoint_name, dataset_name=DEFAULT_DATASET, dataset_spli
 
     # preprocessing dei dati
     print_log("Preprocessing dei dati...")
-    dataset = dataset.map(preprocess, batched=True, batch_size=PREPROCESS_BATCH_SIZE, num_proc=NUM_PROC)
+    dataset = dataset.map(preprocessor, batched=True, batch_size=PREPROCESS_BATCH_SIZE, num_proc=NUM_PROC)
     
     # creazione del trainer
     trainer = Trainer(

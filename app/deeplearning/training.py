@@ -23,7 +23,6 @@ from .utils import (
     load_dataset_from_name
 )
 
-
 def ask_checkpoint_name(model_name):
     # dichiarazione variabili per il salvataggio del checkpoint
     new_checkpoint_name = ''
@@ -75,7 +74,7 @@ def train(model_name, checkpoint_name=None, dataset_name=DEFAULT_DATASET, datase
     training_args,   \
     compute_metrics, \
     callbacks,       \
-    train_preprocess = load_training_args(model_name)
+    train_preprocessor = load_training_args(model_name)
 
     # caricamento del checkpoint
     if (checkpoint_name) and (not from_scratch):
@@ -93,7 +92,7 @@ def train(model_name, checkpoint_name=None, dataset_name=DEFAULT_DATASET, datase
 
     # preprocessing dei dati
     print_log("Preprocessing dei dati...")
-    dataset = dataset.map(train_preprocess, batched=True, batch_size=PREPROCESS_BATCH_SIZE, num_proc=NUM_PROC)
+    dataset = dataset.map(train_preprocessor, batched=True, batch_size=PREPROCESS_BATCH_SIZE, num_proc=NUM_PROC)
 
     # creazione del trainer
     trainer = Trainer(

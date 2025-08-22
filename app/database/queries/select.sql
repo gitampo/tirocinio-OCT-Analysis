@@ -4,7 +4,7 @@ SELECT * FROM patients;
 @queryname:select_report_by_patient_id
 SELECT * FROM reports
 WHERE paziente == ?
-ORDER BY data DESC;
+ORDER BY creato_il DESC;
 
 @queryname:select_patient_by_id
 SELECT * FROM patients 

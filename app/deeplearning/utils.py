@@ -28,14 +28,15 @@ def check_valid_dataset(dataset_name):
     dataset_classes = [file.stem for file in dataset_path.iterdir() if file.is_dir()]
     for dataset_class in dataset_classes:
         if not all(file.is_file() for file in (dataset_path/dataset_class).iterdir()):
-            raise ValueError(f"La classe '{dataset_class}' del dataset '{dataset_name}' contiene elementi che non sono immagini")
+            raise ValueError(f"La classe '{dataset_class}' del dataset '{dataset_name}' contiene elementi che non sono immagini."
+                              "Ricorda: i dataset devono essere imagefolder contenenti cartelle per ogni classe.")
 
 def get_checkpoint_path(model_name, checkpoint_name):
 
     # guardia per il modello (deve esistere una cartella)
     if model_name not in [dir.stem for dir in Path(PT_checkpoints_dir).iterdir()]:
-        raise ValueError(f"Checkpoint '{checkpoint_name}' non disponibile")
-    
+        raise ValueError(f"Checkpoint '{model_name}/{checkpoint_name}' non disponibile")
+
     # cerca il file del checkpoint specificato
     checkpoint_path = None
     for file in (Path(PT_checkpoints_dir)/model_name).iterdir():
@@ -43,7 +44,7 @@ def get_checkpoint_path(model_name, checkpoint_name):
 
     # guardia per il checkpoint
     if checkpoint_path is None:
-        raise ValueError(f"Checkpoint '{checkpoint_name}' non disponibile")
+        raise ValueError(f"Checkpoint '{model_name}/{checkpoint_name}' non disponibile")
 
     return checkpoint_path
 

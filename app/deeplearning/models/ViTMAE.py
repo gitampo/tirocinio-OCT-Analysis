@@ -23,7 +23,7 @@ vitmae_training_args = TrainingArguments(
     save_strategy="epoch",
     eval_strategy="epoch",
     logging_steps=100,
-    num_train_epochs=1,
+    num_train_epochs=15,
     load_best_model_at_end=False,
     metric_for_best_model="accuracy"
 )

@@ -20,7 +20,7 @@ class PatientHistoryFrame(TableFrame):
             font_specs=(FT_family, FT_h2_size, 'bold'),
             columns_anchors_dict=AC_patient_history,
             columns_sizes_dict=CS_patient_history,
-            unwanted_headings = ('id', 'paziente', 'oct')
+            unwanted_headings = ('id', 'paziente', 'oct', 'creato_il')
         )
         
         # dati del paziente

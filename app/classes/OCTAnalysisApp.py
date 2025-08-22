@@ -112,7 +112,7 @@ class OCTAnalysisApp(tk.Tk):
         self.rowconfigure(1, weight=1)
         
         # ottiene i dati del paziente che sta loggando
-        patient_dict = db_manager.get_patient(1)
+        patient_dict = db_manager.get_patient(1013386)
         
         # barra superiore
         self.top_bar = TopBar(self, f'{patient_dict["nome"]} {patient_dict["cognome"]}')       

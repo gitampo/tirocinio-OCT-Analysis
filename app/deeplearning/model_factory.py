@@ -18,11 +18,11 @@ _callbacks        = {
     "vitmae-light": ViTMAE.vitmae_callbacks,
     "vitmae-heavy": ViTMAE.vitmae_callbacks
 }
-_train_preprocess = {
+_train_preprocessor = {
     "vitmae-light": lambda examples: ViTMAE.preprocess_batch(ViTMAE.augment(examples)),
     "vitmae-heavy": lambda examples: ViTMAE.preprocess_batch(ViTMAE.augment(examples))
 }
-_test_preprocess  = {
+_preprocessor  = {
     "vitmae-light": ViTMAE.preprocess_batch,
     "vitmae-heavy": ViTMAE.preprocess_batch
 }
@@ -33,8 +33,8 @@ maps = [
     _training_args,
     _compute_metrics,
     _callbacks,
-    _train_preprocess,
-    _test_preprocess
+    _train_preprocessor,
+    _preprocessor
 ]
 
 # verifica che le chiavi dei dizionari corrispondano ai modelli disponibili
@@ -68,12 +68,12 @@ def load_model(model_name):
 def load_training_args(model_name):
 
     # caricamento degli argomenti di training, metriche, callbacks e preprocess
-    training_args    = _training_args[model_name]
-    compute_metrics  = _compute_metrics[model_name]
-    callbacks        = _callbacks[model_name]
-    train_preprocess = _train_preprocess[model_name]
+    training_args       = _training_args[model_name]
+    compute_metrics     = _compute_metrics[model_name]
+    callbacks           = _callbacks[model_name]
+    train_preprocessor  = _train_preprocessor[model_name]
 
-    return training_args, compute_metrics, callbacks, train_preprocess
+    return training_args, compute_metrics, callbacks, train_preprocessor
 
 @check_model_available
 def get_training_args(model_name):
@@ -88,9 +88,13 @@ def get_callbacks(model_name):
     return _callbacks[model_name]
 
 @check_model_available
-def get_train_preprocess(model_name):
-    return _train_preprocess[model_name]
+def get_train_preprocessor(model_name):
+    return _train_preprocessor[model_name]
 
 @check_model_available
-def get_test_preprocess(model_name):
-    return _test_preprocess[model_name]
+def get_test_preprocessor(model_name):
+    return _preprocessor[model_name]
+
+@check_model_available
+def get_preprocessor(model_name):
+    return _preprocessor[model_name]

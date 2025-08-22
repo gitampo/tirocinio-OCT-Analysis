@@ -8,3 +8,4 @@ app/deeplearning/checkpoints/*
 .venv/
 app/database/data/images/*.jpg
 app/database/data/octanalysis.db
+TODO.txt

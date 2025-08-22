@@ -1,34 +1,27 @@
 import torch
-from deeplearning import SEED
-from deeplearning.utils import set_seed
-from deeplearning.models import ViTMAE
+from deeplearning.model_factory import get_preprocessor, load_model
+from deeplearning import CHECKPOINT_FOR_DISEASE_INFERENCE, SEED
+from deeplearning.utils import get_checkpoint_path, set_seed
 from pathlib import Path
-from configs.paths import PT_checkpoints_dir
 
 def infer_disease(images):
-    # caricamento del checkpoint
-    checkpoint_to_load = Path(PT_checkpoints_dir)/"vitmae-light"/"vitmae-light.pth"
-
-    return infer_vitmae(checkpoint_to_load, images)
-
-def infer_vitmae(checkpoint_to_load, images, type='light'):
-
     set_seed(SEED)
 
+    # checkpoint per l'inferenza
+    checkpoint_to_load = CHECKPOINT_FOR_DISEASE_INFERENCE
+    model_name, checkpoint_name = checkpoint_to_load.split('/')
+    checkpoint_path = get_checkpoint_path(model_name, checkpoint_name)
+
     # guardia per il checkpoint
-    if not Path(checkpoint_to_load).exists():
-        raise FileNotFoundError(f"Checkpoint non trovato: '{checkpoint_to_load}'")
+    if not Path(checkpoint_path).exists():
+        raise FileNotFoundError(f"Checkpoint non trovato: '{checkpoint_path}'")
 
     # guardia per il numero di immagini
-    if images is None or len(images) == 0: return
+    if images is None or len(images) == 0: return ([],[])
 
-    # istanze dei modelli
-    heavy = ViTMAE.ViTMAEForImageClassification_heavy()
-    light = ViTMAE.ViTMAEForImageClassification_light()
-
-    # caricamento del modello
-    model = heavy if type == 'heavy' else light
-    model.load_state_dict(torch.load(checkpoint_to_load))
+    # caricamento del modello e del checkpoint
+    model = load_model(model_name)
+    model.load_state_dict(torch.load(checkpoint_path, weights_only=True))
 
     # impostazione del modello in modalità di valutazione
     model.eval()
@@ -37,7 +30,8 @@ def infer_vitmae(checkpoint_to_load, images, type='light'):
     disease_map = ['AMD','DME','ERM','NO','RAO','RVO','VID']
 
     # preprocessing delle immagini
-    batch_to_infer = ViTMAE.preprocess_batch({'image':images})
+    preprocessor = get_preprocessor(model_name)
+    batch_to_infer = preprocessor({'image': images})
 
     # inferenza sulle immagini
     with torch.no_grad():
@@ -52,3 +46,6 @@ def infer_vitmae(checkpoint_to_load, images, type='light'):
         preds = probs.argmax(dim=-1)
 
         return [disease_map[pred] for pred in preds], list(probs.max(dim=-1).values*100)
+
+
+    return infer_vitmae(checkpoint_to_load, images)

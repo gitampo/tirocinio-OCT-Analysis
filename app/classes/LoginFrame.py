@@ -3,6 +3,7 @@ from configs.colors import *
 from configs.sizes import *
 from configs.fonts import *
 from configs.tables import *
+from configs.paths import *
 from classes.TableFrame import *
 from classes.ImageCanvas import *
 from classes.AddReportDialog import *
@@ -20,7 +21,7 @@ class LoginFrame(tk.Frame):
 
         # istanzia il logo e il nome dell'app
         img_canvas = ImageCanvas(frm_container, 
-                                 './assets/app_logo.png', 
+                                 PT_app_logo, 
                                  width=SZ_logo_w,
                                  height=SZ_logo_h,
                                  alt='Logo non trovato...')

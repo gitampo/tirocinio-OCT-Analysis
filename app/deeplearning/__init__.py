@@ -1,5 +1,6 @@
 # configurazione delle variabili del package
 AVAILABLE_MODELS = ['vitmae-light', 'vitmae-heavy']
+CHECKPOINT_FOR_DISEASE_INFERENCE = 'vitmae-light/base'
 
 DEFAULT_DATASET = 'OCTDL'
 DEFAULT_SPLIT = (0.8, 0.1, 0.1)  # train, eval, test split

@@ -1,4 +1,6 @@
+from operator import index
 import tkinter as tk
+from database import db_manager
 from classes.BscanDialog import BscanDialog
 from classes.ScrollableFrame import ScrollableFrame
 from classes.ImageCanvas import ImageCanvas
@@ -11,7 +13,7 @@ from utils.funs import *
 from PIL import Image
 from database.db_manager import get_bscans_of_report
 from deeplearning.inference import infer_disease
-from tqdm import tqdm
+from functools import partial
 
 class ReportFrame(ScrollableFrame):
 
@@ -19,50 +21,52 @@ class ReportFrame(ScrollableFrame):
 
         # supercostruttore
         super(ReportFrame,self).__init__(parent, bg=CC_frm_report_bg)
-        
-        # label di caricamento
-        lbl_loading = tk.Label(self, text='Caricamento...', bg=CC_frm_report_bg, fg=CC_title_fg, pady=15)
-        lbl_loading.pack(side="top", fill="x")
-        self.lbl_loading = lbl_loading
-        self.has_loaded = False
 
-        # riposiziona canvas e scrollbar (sotto la label di caricamento)
-        self.canvas_container.pack_forget()
-        self.scrollbar.pack_forget()
-        self.canvas_container.pack(side="left", fill="both", expand=True)
-        self.scrollbar.pack(side="right", fill="y")
+        # crea la finestra di caricamento (sarà chiusa al termine del caricamento)
+        tl = create_loading_dialog(self)
+        tl.bind_all("<<LoadingCompleted>>", lambda e: tl.destroy())
 
-        # ottiene le immagini delle bscans relative al report
-        fetched_bscans = get_bscans_of_report(report_id)
-        bscans_images = [bscan['immagine'] for bscan in fetched_bscans]
+        # flag per indicare se il caricamento è in corso
+        self.is_loading = True
 
-        inputs_and_labels = []
+        # liste di input e label (da usare per l'inferenza)
+        self.inputs = []
+        self.lbl_list = []
 
-        # aggiunge le anteprime delle bscan al frame container
-        for bscan_image in tqdm(bscans_images):
+        # proprietà del canvas
+        self.report_id = report_id
+        self.bscans_per_row = None # calcolato successivamente
+        self.opened_dialogs = {} # dialog delle bscans, aperti
 
+        # gestione dell'evento di ridimensionamento
+        self.canvas_container.bind("<Configure>", self.update_grid_layout)
+
+    def setUpBscanPreview(self, parent, bscan):
             # container per la bscan
-            bscan_container = tk.Frame(self.frm_container, bg=CC_frm_report_bg)
+            bscan_container = tk.Frame(
+                parent, 
+                bg=CC_frm_report_bg,
+                width=SZ_bscan_preview_w,
+                height=SZ_bscan_preview_h
+            )
 
             # label del filename
             lbl_filename = tk.Label(bscan_container, 
-                                    text=bscan_image, 
-                                    bg=CC_lbl_bscan_label_bg, 
-                                    fg=CC_lbl_bscan_label_fg,
-                                    padx=10,
-                                    pady=10)
+                text=bscan['immagine'], 
+                bg=CC_lbl_bscan_label_bg, 
+                fg=CC_lbl_bscan_label_fg,
+                padx=10,
+                pady=10)
             lbl_filename.pack(fill="x")
 
             # separatore
             tk.Frame(bscan_container, height=3, bg=CC_bscan_separator).pack(fill="x")
 
             # immagine bscan
-            bscan_image_path = Path(PT_images_dir)/bscan_image
+            bscan_image_path = Path(PT_images_dir)/bscan['immagine']
             bscan_preview = ImageCanvas(
                 bscan_container,
-                bscan_image_path, 
-                width=SZ_bscan_preview_w, 
-                height=SZ_bscan_preview_h, 
+                bscan_image_path,
                 cursor='hand2',
                 alt='Immagine bscan non trovata...')
             bscan_preview.pack(fill="both", expand=True)
@@ -72,37 +76,41 @@ class ReportFrame(ScrollableFrame):
 
             # label di previsione della malattia
             lbl_inference = tk.Label(bscan_container, 
-                                     text=f"Nessuna previsione", 
-                                     bg=CC_lbl_bscan_label_bg, 
-                                     fg=CC_lbl_bscan_label_fg,
-                                     padx=10,
-                                     pady=10)
+                bg=CC_lbl_bscan_label_bg, 
+                fg=CC_lbl_bscan_label_fg,
+                padx=10,
+                pady=10)
             lbl_inference.pack(fill="x")
 
-            # lista di input e label (da usare per l'inferenza)
-            inputs_and_labels += [(Image.open(bscan_image_path), lbl_inference)]
+            # carica le previsioni se presenti
+            if bscan['malattia_predetta'] and bscan['probabilità_predizione']:
+                pred = bscan['malattia_predetta']
+                prob = bscan['probabilità_predizione']
+                lbl_inference.config(text=f"{pred} con {prob:.2f}% di probabilità")
+            # altrimenti aggiungi all'elenco di input da usare per l'inferenza
+            else:
+                self.inputs += [Image.open(bscan_image_path)]
+                self.lbl_list += [(bscan['id'], lbl_inference)]
 
             # associa il click dell'anteprima all'apertura del dialog
             bscan_preview.bind("<Button-1>", self.on_bscan_click)
 
-        inputs = [input for input, _ in inputs_and_labels]
-        preds, probs = infer_disease(inputs)
+    def load_bscans(self):
+        # ottiene le immagini delle bscans relative al report
+        bscans = get_bscans_of_report(self.report_id)
 
-        for (pred, prob, (_, lbl_inference)) in zip(preds, probs, inputs_and_labels):
-            lbl_inference.config(text=f"{pred} con {prob:.2f}% di probabilità")
+        # aggiunge le anteprime delle bscan al frame container
+        for i, bscan in enumerate(bscans):
+            self.setUpBscanPreview(self.frm_container, bscan)
 
-        # proprietà del canvas
-        self.bscans_per_row = None
-        self.opened_dialogs = {}
-
-        # evento di ricaricamento
-        self.canvas_container.bind("<Configure>", self.update_grid_layout)
+        # esegue l'inferenza delle immagini che lo richiedono
+        self.infer_diseases()
 
     def on_bscan_click(self, event):
         # ottiene il nome del file dell'immagine
         image_path = event.widget.image_path
 
-        widget_id =event.widget.winfo_id()
+        widget_id = event.widget.winfo_id()
         event.widget.master.configure(highlightthickness=1, highlightbackground=CC_dlg_bscan_highlight)
 
         # nuovo dialog con immagine bscan
@@ -119,26 +127,46 @@ class ReportFrame(ScrollableFrame):
 
     def update_grid_layout(self, event=None):
 
+        # carica le bscan se necessario
+        if self.is_loading:
+            self.load_bscans()
+
         # calcola il numero di bscan-preview in una riga, in base alla larghezza di canvas e singola preview
         canvas_container_w = self.canvas_container.winfo_width()
         bscan_preview_tot_w = SZ_bscan_preview_w + SZ_bscan_preview_padx * 2
         previews_per_row = max(1, canvas_container_w // bscan_preview_tot_w)
-
+        
         # ridimensiona il frame contenitore per adattarsi alla larghezza del canvas
         self.canvas_container.itemconfig(self.frm_container_id, width=canvas_container_w)
 
         # riposiziona le preview se necessario
         self.place_bscan_previews(previews_per_row)
-
-        # aggiorna la scroll region
         self.update_scrollregion()
 
-        # rimuove la label di caricamento
-        if not self.has_loaded:
-            self.has_loaded = True
-            self.lbl_loading.pack_forget()
+        # segnala il completamento del caricamento
+        if self.is_loading:
+            self.is_loading = False
+            self.after(500, self.event_generate, "<<LoadingCompleted>>")
 
         return 'break'
+
+    def infer_diseases(self):
+        # verifica se ci sono immagini da elaborare
+        if not self.inputs: return
+
+        # esegue l'inferenza delle immagini senza predizione
+        preds, probs = infer_disease(self.inputs)
+
+        # ciclo per aggiungere le previsioni al database e alla visualizzazione
+        for (pred, prob, (bscan_id, lbl_inference)) in zip(preds, probs, self.lbl_list):
+            prob = prob.item()
+
+            # salva la previsione nel database e aggiorna la label corrispondente
+            db_manager.set_prediction_for_bscan(bscan_id, pred, prob)
+            lbl_inference.config(text=f"{pred} con {prob:.2f}% di probabilità")
+
+        # pulisce gli input
+        self.inputs.clear()
 
     def place_bscan_previews(self, num_of_columns):
         # controlla se il numero di colonne è cambiato
@@ -148,17 +176,17 @@ class ReportFrame(ScrollableFrame):
         self.frm_container.columnconfigure(tuple(i for i in range(num_of_columns)), weight=1)
 
         # scorre la lista di bscan per posizionarle tutte
-        for index, bscan_preview in enumerate(self.frm_container.winfo_children()): 
-
+        for i, bscan_preview in enumerate(self.frm_container.winfo_children()): 
+            
             # rimuove la bscan-preview corrente dal layout grid
             bscan_preview.grid_forget()
 
             # calcola la posizione della preview
-            row = index // num_of_columns
-            column = index % num_of_columns
+            row = i // num_of_columns
+            column = i % num_of_columns
 
             # posiziona la bscan-preview nel layout grid nella nuova posizione
             bscan_preview.grid(row=row, column=column, sticky='nswe', padx=SZ_bscan_preview_padx, pady=SZ_bscan_preview_pady)
-        
+
         # aggiorna il numero di colonne salvate nell'istanza
         self.bscans_per_row = num_of_columns 

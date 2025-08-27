@@ -1,5 +1,7 @@
 import re
 from pathlib import Path
+import tkinter as tk
+from configs.colors import CC_loading_bg, CC_loading_fg 
 
 def remove_tag(tag, tag_tuple):
     new_tag_tuple = tag_tuple
@@ -117,3 +119,36 @@ def get_available_filename(directory, filename):
         counter += 1 # se serve un'altra iterazione
         
     return available_filename
+
+def centered_toplevel(parent, size=(250, 150)):
+    # istanzia una finestra di dialogo
+    tl = tk.Toplevel(parent)
+
+    # ottiene la finestra master
+    master = parent.winfo_toplevel()
+    master_x, master_y = master.winfo_x(), master.winfo_y()
+
+    # calcola la posizione centrata
+    x, y = centered_position((master.winfo_width(), master.winfo_height()), size)
+
+    # posizione della finestra di dialogo come figlia della finestra master
+    tl.geometry(f"{size[0]}x{size[1]}+{x+master_x}+{y+master_y}")
+    tl.transient(master)
+
+    return tl
+
+def create_loading_dialog(parent, size=(350, 150)):
+
+    # crea una finestra di dialogo per il caricamento
+    tl = centered_toplevel(parent, size)
+    tl.title("Caricamento...")
+    tl.resizable(False, False)
+    tl.protocol("WM_DELETE_WINDOW", lambda: None)
+
+    # inserisce una label nella finestra di caricamento
+    lbl_loading = tk.Label(tl, text="Attendere...", bg=CC_loading_bg, fg=CC_loading_fg)
+    lbl_loading.pack(fill="both", expand=True)
+
+    tl.update_idletasks()
+
+    return tl

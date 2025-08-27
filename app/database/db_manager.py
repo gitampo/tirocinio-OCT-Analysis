@@ -1,3 +1,4 @@
+from configs.paths import PT_database
 from . import queries
 import sqlite3
 
@@ -11,14 +12,39 @@ def get_connection():
     
     return db_connection
 
+# decorator per garantire la connessione al DB
+def needs_connection(row_factory=None):
+    def decorator(func):
+        def wrapper(*args, **kwargs):
+            # ottiene il parametro new_thread
+            new_thread = kwargs.get('new_thread', False)
+
+            # ottiene la connessione al DB
+            conn = get_connection()
+            if new_thread:
+                conn = sqlite3.connect(PT_database)
+
+            # imposta il row_factory e il cursore
+            conn.row_factory = row_factory
+            cursor = conn.cursor()
+
+            # esegue la funzione con il cursore
+            kwargs.pop('new_thread', None) # rimuove il parametro per non passarlo alla funzione
+            result = func(cursor, *args, **kwargs)
+
+            # gestisce la chiusura della connessione
+            if new_thread:
+                conn.commit()
+                conn.close()
+
+            return result
+        return wrapper
+    return decorator
+
 ######################################################################
 
-def get_all_patients():
-    # prende la connessione e imposta row-factory e cursore
-    conn = get_connection()
-    conn.row_factory = None
-    cursor = conn.cursor()
-    
+@needs_connection()
+def get_all_patients(cursor):
     # dati di tutti i pazienti
     res = cursor.execute(queries['select']['select_all_patients'])
     
@@ -28,12 +54,8 @@ def get_all_patients():
     
     return headings, rows
 
-def get_patient_history(patient_id):
-    # prende la connessione e imposta row-factory e cursore
-    conn = get_connection()
-    conn.row_factory = None
-    cursor = conn.cursor()
-    
+@needs_connection()
+def get_patient_history(cursor, patient_id):
     # report del singolo paziente
     res = cursor.execute(queries['select']['select_report_by_patient_id'], [patient_id])
     
@@ -43,12 +65,8 @@ def get_patient_history(patient_id):
     
     return headings, rows
 
-def get_patient(patient_id):
-    # prende la connessione e imposta row-factory e cursore
-    conn = get_connection()
-    conn.row_factory = sqlite3.Row
-    cursor = conn.cursor()
-    
+@needs_connection(sqlite3.Row)
+def get_patient(cursor, patient_id):
     # dati del singolo paziente
     res = cursor.execute(queries['select']['select_patient_by_id'], [patient_id])
     
@@ -57,12 +75,8 @@ def get_patient(patient_id):
     
     return patient_dict
 
-def get_doctor(doctor_id):
-    # prende la connessione e imposta row-factory e cursore
-    conn = get_connection()
-    conn.row_factory = sqlite3.Row
-    cursor = conn.cursor()
-    
+@needs_connection(sqlite3.Row)
+def get_doctor(cursor, doctor_id):
     # dati del singolo medico
     res = cursor.execute(queries['select']['select_doctor_by_id'], [doctor_id])
     
@@ -71,12 +85,8 @@ def get_doctor(doctor_id):
     
     return doctor_dict
 
-def add_report(report_dict, bscan_list):
-    # prende la connessione e imposta row-factory e cursore
-    conn = get_connection()
-    conn.row_factory = None
-    cursor = conn.cursor()
-
+@needs_connection()
+def add_report(cursor, report_dict, bscan_list):
     # dati del report da passare alla query
     args = [report_dict['paziente'],
             report_dict['data'],
@@ -90,12 +100,8 @@ def add_report(report_dict, bscan_list):
     for bscan in bscan_list:
         cursor.execute(queries['insert']['insert_bscan'], [report_id, bscan])
 
-def get_bscans_of_report(report_id):
-    # prende la connessione e imposta row-factory e cursore
-    conn = get_connection()
-    conn.row_factory = sqlite3.Row
-    cursor = conn.cursor()
-
+@needs_connection(sqlite3.Row)
+def get_bscans_of_report(cursor, report_id):
     # B-scans per il report specificato
     res = cursor.execute(queries['select']['select_bscans_by_report_id'], [report_id])
 
@@ -103,3 +109,9 @@ def get_bscans_of_report(report_id):
     bscans = res.fetchall()
 
     return [dict(bscan) for bscan in bscans]
+
+@needs_connection()
+def set_prediction_for_bscan(cursor, bscan_id, malattia, probabilita):
+    # aggiorna la previsione per il B-scan specificato
+    cursor.execute(queries['update']['update_bscan_prediction'], [malattia, probabilita, bscan_id])
+    cursor.connection.commit()

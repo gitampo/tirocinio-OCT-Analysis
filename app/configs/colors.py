@@ -117,3 +117,7 @@ CC_bscan_separator = __CC_blue_500
 # bscan dialog
 CC_dlg_bscan_bg = __CC_black
 CC_dlg_bscan_highlight = __CC_white
+
+# caricamento
+CC_loading_bg = __CC_blue_800
+CC_loading_fg = __CC_text

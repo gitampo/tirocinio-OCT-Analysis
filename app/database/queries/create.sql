@@ -20,7 +20,9 @@ CREATE TABLE IF NOT EXISTS reports (
 CREATE TABLE IF NOT EXISTS bscans (
     id INTEGER PRIMARY KEY,
     report INTEGER REFERENCES reports(id),
-    immagine VARCHAR(255) NOT NULL
+    immagine VARCHAR(255) NOT NULL,
+    malattia_predetta VARCHAR(100) CHECK(malattia_predetta IN ('AMD','DME','ERM','NO','RAO','RVO','VID')),
+    probabilità_predizione REAL CHECK(probabilità_predizione BETWEEN 0 AND 100)
 );
 
 @queryname:create_doctors

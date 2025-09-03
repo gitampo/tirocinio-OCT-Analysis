@@ -1,11 +1,10 @@
 __pycache__/
 trainer_output/
-app/deeplearning/checkpoints/*
-app/deeplearning/datasets/*
-app/deeplearning/checkpoints/*
+app/deeplearning/data/checkpoints/*
+app/deeplearning/data/datasets/*
 !.gitkeep
 *.csv
 .venv/
-app/database/data/images/*.jpg
+app/database/data/images/*
 app/database/data/octanalysis.db
 TODO.txt

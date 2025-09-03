@@ -1,10 +1,17 @@
-import torch
-import random
-import numpy as np
+from transformers import TrainingArguments
 from pathlib import Path
-from configs.paths import PT_datasets_dir, PT_checkpoints_dir
+import pandas as pd
+import numpy as np
 import datasets
+import random
+import torch
+
 from . import *
+from configs.paths import (
+    PT_datasets_dir, 
+    PT_checkpoints_dir, 
+    PT_trainer_output_dir
+)
 
 def check_valid_split(dataset_split):
     train_sz, eval_sz, test_sz = dataset_split
@@ -48,8 +55,21 @@ def get_checkpoint_path(model_name, checkpoint_name):
 
     return checkpoint_path
 
-def load_dataset_from_name(dataset_name, dataset_split):
-    
+def load_dataset_from_name(dataset_name):
+
+    # controlla la validità del dataset
+    check_valid_dataset(dataset_name)
+
+    # ottiene il percorso del dataset specificato
+    dataset_path = Path(PT_datasets_dir) / dataset_name
+
+    # carica il dataset utilizzando la libreria datasets di Hugging Face
+    dataset = datasets.load_dataset("imagefolder", data_dir=str(dataset_path))
+
+    return dataset
+
+def load_splitted_dataset_from_name(dataset_name, dataset_split):
+
     # controlla la validità del dataset e degli split
     check_valid_dataset(dataset_name)
     check_valid_split(dataset_split)
@@ -72,7 +92,7 @@ def load_dataset_from_name(dataset_name, dataset_split):
 
     return dataset
 
-def set_seed(seed=SEED):
+def set_seed(seed=DEFAULT_SEED):
     # imposta il seed di tutte le funzioni che usano
     # generazione pseudo-randomica
     random.seed(seed)
@@ -81,3 +101,18 @@ def set_seed(seed=SEED):
     torch.cuda.manual_seed_all(seed)
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
+
+def load_training_args():
+    # TODO: è possibile generalizzare questa funzione per rendere gli argomenti maggiormente
+    # configurabili, magari tramite file di configurazione e apposita opzione nell'argparser
+    return TrainingArguments(
+        output_dir=PT_trainer_output_dir,
+        per_device_train_batch_size=8,
+        per_device_eval_batch_size=8,
+        save_strategy="epoch",
+        eval_strategy="epoch",
+        logging_steps=1,
+        num_train_epochs=1,
+        load_best_model_at_end=False,
+        metric_for_best_model="accuracy"
+    )

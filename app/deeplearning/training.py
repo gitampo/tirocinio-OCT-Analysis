@@ -1,3 +1,5 @@
+from pyexpat import model
+from sklearn.metrics import accuracy_score
 import torch
 from transformers import Trainer
 from pathlib import Path
@@ -5,22 +7,25 @@ import re
 
 from . import (
     DEFAULT_DATASET,
+    DEFAULT_SEED,
     DEFAULT_SPLIT,
     NUM_PROC,
-    PREPROCESS_BATCH_SIZE,
+    PREPROCESS_BATCH_SIZE
 )
-from .model_factory import load_training_args, load_model
+from .model_factory import get_train_preprocessor, load_model
 from configs.paths import PT_checkpoints_dir
 from utils.print import (
     print_separator, 
     print_warning, 
     print_success, 
-    print_log,
+    print_info,
     print_success_box
 )
 from .utils import (
     get_checkpoint_path,
-    load_dataset_from_name
+    load_training_args,
+    load_splitted_dataset_from_name,
+    set_seed
 )
 
 def ask_checkpoint_name(model_name):
@@ -65,20 +70,17 @@ def ask_checkpoint_name(model_name):
 
     return new_checkpoint_name, new_checkpoint_path, wants_to_overwrite
 
-def train(model_name, checkpoint_name=None, dataset_name=DEFAULT_DATASET, dataset_split=DEFAULT_SPLIT, from_scratch=True):
-    
+def load_for_train(model_name, checkpoint_name, dataset_name, dataset_split, from_scratch):
     # caricamento del modello e degli argomenti di training
     model = load_model(model_name)
 
     # caricamento degli argomenti di training
-    training_args,   \
-    compute_metrics, \
-    callbacks,       \
-    train_preprocessor = load_training_args(model_name)
+    training_args = load_training_args()
+    train_preprocessor = get_train_preprocessor(model_name)
 
     # caricamento del checkpoint
     if (checkpoint_name) and (not from_scratch):
-        print(f"Caricamento del checkpoint '{checkpoint_name}' per il modello '{model_name}'...")
+        print_info(f"Caricamento del checkpoint '{checkpoint_name}' per il modello '{model_name}'...")
         checkpoint_path = get_checkpoint_path(model_name, checkpoint_name)
         model.load_state_dict(torch.load(checkpoint_path, weights_only=True))
     elif (not checkpoint_name) and (not from_scratch):
@@ -87,12 +89,30 @@ def train(model_name, checkpoint_name=None, dataset_name=DEFAULT_DATASET, datase
         pass # TODO: inizializzare i pesi, ViTMAE non ne ha bisogno perché è pretrained
 
     # caricamento del dataset
-    print_log(f"Caricamento del dataset '{dataset_name}'...")
-    dataset = load_dataset_from_name(dataset_name, dataset_split)
+    print_info(f"Caricamento del dataset '{dataset_name}'...")
+    dataset = load_splitted_dataset_from_name(dataset_name, dataset_split)
 
     # preprocessing dei dati
-    print_log("Preprocessing dei dati...")
+    print_info("Preprocessing dei dati...")
     dataset = dataset.map(train_preprocessor, batched=True, batch_size=PREPROCESS_BATCH_SIZE, num_proc=NUM_PROC)
+
+    return model, training_args, dataset
+
+def train(model_name, checkpoint_name=None, dataset_name=DEFAULT_DATASET, dataset_split=DEFAULT_SPLIT, seed=DEFAULT_SEED, from_scratch=True):
+
+    # impostazione del seed per riproducibilità
+    set_seed(seed)
+
+    # caricamento del modello, degli argomenti di training e del dataset
+    model,         \
+    training_args, \
+    dataset = load_for_train(model_name, checkpoint_name, dataset_name, dataset_split, from_scratch)
+
+    # funzione per il calcolo delle metriche di valutazione
+    def compute_metrics_for_eval(eval_pred):
+        logits, labels = eval_pred
+        preds = logits.argmax(axis=-1) # calcolo delle predizioni
+        return {"accuracy": accuracy_score(labels, preds)}
 
     # creazione del trainer
     trainer = Trainer(
@@ -100,12 +120,11 @@ def train(model_name, checkpoint_name=None, dataset_name=DEFAULT_DATASET, datase
         args=training_args,
         train_dataset=dataset['train'],
         eval_dataset=dataset['eval'],
-        compute_metrics=compute_metrics,
-        callbacks=callbacks
+        compute_metrics=compute_metrics_for_eval
     )
 
     # training vero e proprio
-    print_log("Inizio del training...")
+    print_info("Inizio del training...")
     trainer.train()
     print_success_box("Training completato!")
 
@@ -116,6 +135,6 @@ def train(model_name, checkpoint_name=None, dataset_name=DEFAULT_DATASET, datase
 
     # salvataggio del checkpoint
     message = "Sovrascrittura del checkpoint..." if wants_to_overwrite else "Salvataggio del nuovo checkpoint..."
-    print_log(message)
+    print_info(message)
     torch.save(trainer.model.state_dict(), new_checkpoint_path) # salvataggio del modello addestrato
     print_success(f"Checkpoint salvato come: {new_checkpoint_name}")

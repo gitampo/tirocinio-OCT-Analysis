@@ -1,7 +1,11 @@
 import argparse
 import textwrap
 import sys
-from deeplearning import DEFAULT_DATASET
+from deeplearning import (
+    DEFAULT_DATASET, 
+    DEFAULT_SEED,
+    DEFAULT_KFOLDS
+)
 from deeplearning.availables import (
     available_checkpoints, 
     available_models, 
@@ -52,7 +56,7 @@ def setup_train_parser(subparsers):
         formatter_class=help_formatter,
         epilog=epilog([(f"python {PROG} train --from-scratch vitmae-light","Training da zero"), 
                          (f"python {PROG} train --from-checkpoint vitmae-light/base","Training da checkpoint"),
-                         (f"python {PROG} train -s vitmae-light --dataset OCTDL","Training da zero con dataset specifico")]),
+                         (f"python {PROG} train -s vitmae-light --dataset OCTDL -S 1234","Training da zero con dataset e seed specificati")]),
         add_help=False)
 
     # help del comando train
@@ -76,14 +80,23 @@ def setup_train_parser(subparsers):
         action='store',
         metavar='CHECKPOINT',
         choices=available_checkpoints(),
-        help=help('Avvia il training a partire dal checkpoint specificato.\n(vedi anche "list --checkpoints").')
+        help=help('Avvia il training a partire dal checkpoint specificato.\n(vedi anche "list --checkpoints")')
     )
     train_parser.add_argument(
         '-d','--dataset',
         action='store',
         metavar='DATASET',
+        default=DEFAULT_DATASET,
         choices=available_datasets(),
-        help=help('Specifica il dataset da utilizzare per il training.')
+        help=help(f'Specifica il dataset da utilizzare per il training. \n(vedi anche "list --datasets") \n(default: "{DEFAULT_DATASET}")')
+    )
+    train_parser.add_argument(
+        '-S','--seed',
+        action='store',
+        metavar='SEED',
+        default=DEFAULT_SEED,
+        type=int,
+        help=help(f'Specifica il seed da utilizzare nel training, a scopo di riproducibilità. \n(default: {DEFAULT_SEED})')
     )
 
 def setup_test_parser(subparsers):
@@ -94,7 +107,7 @@ def setup_test_parser(subparsers):
         help=help("Comando per l'esecuzione del testing di un modello"), 
         formatter_class=help_formatter,
         epilog=epilog([(f"python {PROG} test --checkpoint vitmae-light/base","Testing del checkpoint selezionato"),
-                         (f"python {PROG} test -c vitmae-light/base --dataset OCTDL","Testing del checkpoint su un dataset specifico")]),
+                         (f"python {PROG} test -c vitmae-light/base --dataset OCTDL -S 1234","Testing del checkpoint su dataset e seed specificati")]),
         add_help=False)
 
     # help del comando test
@@ -111,26 +124,76 @@ def setup_test_parser(subparsers):
         action='store',
         metavar='CHECKPOINT',
         choices=available_checkpoints(),
-        help=help('Carica i checkpoints prima del testing')
+        help=help('Carica i checkpoints prima del testing. \n(vedi anche "list --checkpoints")')
     )
     test_parser.add_argument(
         '-d','--dataset',
         action='store',
         metavar='DATASET',
+        default=DEFAULT_DATASET,
         choices=available_datasets(),
-        help=help('Specifica il dataset da utilizzare per il testing.')
+        help=help(f'Specifica il dataset da utilizzare per il testing. \n(vedi anche "list --datasets") \n(default: "{DEFAULT_DATASET}")')
+    )
+    test_parser.add_argument(
+        '-S','--seed',
+        action='store',
+        metavar='SEED',
+        default=DEFAULT_SEED,
+        type=int,
+        help=help(f'Specifica il seed da utilizzare nel testing, a scopo di riproducibilità. \n(default: {DEFAULT_SEED})')
+    )
+
+def setup_kfoldcv_parser(subparsers):
+    # costruzione del comando kfoldcv
+    kfoldcv_parser = subparsers.add_parser(
+        'kfoldcv', 
+        description=description("Comando per l'esecuzione del K-Fold Cross Validation di un modello"),
+        help=help("Comando per l'esecuzione del K-Fold Cross Validation di un modello"),
+        formatter_class=help_formatter,
+        epilog=epilog([(f"python {PROG} kfoldcv --model vitmae-light",f"K-Fold del modello selezionato (k={DEFAULT_KFOLDS})"),
+                         (f"python {PROG} kfoldcv --model vitmae-light -k 7 -S 1234","K-Fold a sette fold, con seed 1234")]),
+        add_help=False)
+
+    # help del comando kfoldcv
+    kfoldcv_parser.add_argument(
+        '-h', '--help', 
+        action='help', 
+        help=help('Mostra questo messaggio di help.')
+    )
+
+    kfoldcv_parser.add_argument(
+        '-m','--model',
+        action='store',
+        metavar='MODEL',
+        required=True,
+        choices=available_models(),
+        help=help('Specifica il modello da utilizzare per il K-Fold Cross Validation. \n(vedi anche "list --models")')
+    )
+    kfoldcv_parser.add_argument(
+        '-k', '--num-folds',
+        action='store',
+        metavar='KFOLDS',
+        default=DEFAULT_KFOLDS,
+        type=int,
+        help=help(f'Specifica il numero di fold da utilizzare nel K-Fold Cross Validation. \n(default: {DEFAULT_KFOLDS})')
+    )
+    kfoldcv_parser.add_argument(
+        '-S','--seed',
+        action='store',
+        metavar='SEED',
+        default=DEFAULT_SEED,
+        type=int,
+        help=help(f'Specifica il seed da utilizzare nel K-Fold Cross Validation, a scopo di riproducibilità. \n(default: {DEFAULT_SEED})')
     )
 
 def setup_list_parser(subparsers):
     # costruzione del comando list
     list_parser = subparsers.add_parser(
         'list', 
-        description=description('Comando per elencare i modelli e i checkpoints disponibili'),
-        help=help('Comando per elencare i modelli e i checkpoints disponibili'), 
+        description=description('Comando per elencare modelli, checkpoints e dataset disponibili'),
+        help=help('Comando per elencare modelli, checkpoints e dataset disponibili'), 
         formatter_class=help_formatter,
-        epilog=epilog([(f"python {PROG} list --models","Listing dei modelli disponibili"),
-            (f"python {PROG} list --checkpoints","Listing dei checkpoint disponibili"),
-            (f"python {PROG} list --datasets","Listing dei dataset disponibili")]),
+        epilog=epilog([(f"python {PROG} list --checkpoints","Listing dei checkpoint disponibili")]),
         add_help=False)
     
     # help del comando list
@@ -151,7 +214,7 @@ def setup_list_parser(subparsers):
         '-c','--checkpoints',
         action='store_true',
         help=help('Lista dei checkpoints disponibili.')
-)
+    )
     list_what.add_argument(
         '-d','--datasets',
         action='store_true',
@@ -175,6 +238,7 @@ def get_args():
     # setup dei comandi
     setup_train_parser(subparsers)
     setup_test_parser(subparsers)
+    setup_kfoldcv_parser(subparsers)
     setup_list_parser(subparsers)
 
     # ottiene gli argument
@@ -190,7 +254,7 @@ def check_model_and_checkpoint(args):
 
 def handle_args(args):
 
-    # gestisce gli arguments per il comando di training
+    # gestisce il comando di training
     if args.command == 'train':
         # training da zero
         if args.from_scratch:
@@ -206,32 +270,42 @@ def handle_args(args):
             model_name, checkpoint_name = args.from_checkpoint.split('/') # <model/checkpoint>
             train(model_name=model_name,
                   checkpoint_name=checkpoint_name,
-                  dataset_name=args.dataset or DEFAULT_DATASET,
+                  dataset_name=args.dataset,
+                  seed=args.seed,
                   from_scratch=False)
             
-    # gestisce gli arguments per il comando di testing
+    # gestisce il comando di testing
     elif args.command == 'test':
         from deeplearning.testing import test # lazy loading
 
         model_name, checkpoint_name = args.checkpoint.split('/') # <model/checkpoint>
         test(model_name=model_name,
               checkpoint_name=checkpoint_name,
-              dataset_name=args.dataset or DEFAULT_DATASET)
+              dataset_name=args.dataset,
+              seed=args.seed)
 
-    # gestisce gli arguments per il comando di listing
+    # gestisce il comando di kfoldcv
+    elif args.command == 'kfoldcv':
+        from deeplearning.kfoldcv import kfold_cv # lazy loading
+
+        kfold_cv(model_name=args.model,
+                  seed=args.seed,
+                  num_folds=args.num_folds)
+
+    # gestisce il comando di listing
     elif args.command == 'list':
         if args.models:
             print('Modelli disponibili:')
             print_list(available_models())
-            print_info('Info: usarli con il flag -s o --from-scratch (es. -s model)')
+            print_info('Info: usarli con il flag -model o --from-scratch (es. --model <model>)')
         elif args.checkpoints:
             print('Checkpoints disponibili:')
             print_list(available_checkpoints())
-            print_info('Info: usarli con il flag -c o --from-checkpoint (es. -c model/checkpoint)')
+            print_info('Info: usarli con il flag -c o --from-checkpoint (es. -c <model/checkpoint>)')
         elif args.datasets:
             print('Datasets disponibili:')
             print_list(available_datasets())
-            print_info('Info: usarli con il flag -d o --dataset (es. -d dataset)')
+            print_info('Info: usarli con il flag -d o --dataset (es. -d <dataset>)')
 
     # se ha eseguito un comando termina l'esecuzione, altrimenti continua
     if args.command: exit(0)

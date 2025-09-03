@@ -10,24 +10,6 @@ config = ViTMAEConfig.from_pretrained("facebook/vit-mae-base")
 # Processor per le immagini
 processor = ViTImageProcessor.from_pretrained('facebook/vit-mae-base')
 
-# lista delle callbacks da passare al trainer di vitmae
-vitmae_callbacks = [
-    # EarlyStoppingCallback(early_stopping_patience=3)
-]
-
-# configurazione degli argomenti da passare al trainer di vitmae
-vitmae_training_args = TrainingArguments(
-    output_dir=PT_trainer_output_dir,
-    per_device_train_batch_size=8,
-    per_device_eval_batch_size=8,
-    save_strategy="epoch",
-    eval_strategy="epoch",
-    logging_steps=1,
-    num_train_epochs=15,
-    load_best_model_at_end=False,
-    metric_for_best_model="accuracy"
-)
-
 # ----------------------------------------------------------------------------
 # ----------------------------------------------------------------------------
 
@@ -121,9 +103,3 @@ def augment(examples):
     # augmentation dei dati di addestramento
     examples['image'] = [transform(image.convert('RGB')) for image in examples['image']]
     return examples   
-
-def vitmae_compute_metrics(eval_pred):
-    predictions, labels = eval_pred
-    predictions = predictions.argmax(axis=-1)
-    acc = (predictions == labels).mean()
-    return {"accuracy": acc}

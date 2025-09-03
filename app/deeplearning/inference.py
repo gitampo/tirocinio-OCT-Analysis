@@ -1,11 +1,17 @@
 import torch
-from deeplearning.model_factory import get_preprocessor, load_model
-from deeplearning import CHECKPOINT_FOR_DISEASE_INFERENCE, SEED
+from .datasets import OCTDL
+from .model_factory import (
+    get_preprocessor, 
+    load_model 
+)
+from deeplearning import CHECKPOINT_FOR_DISEASE_INFERENCE, DEFAULT_SEED
 from deeplearning.utils import get_checkpoint_path, set_seed
 from pathlib import Path
 
-def infer_disease(images):
-    set_seed(SEED)
+def infer_disease(images, seed=DEFAULT_SEED):
+
+    # impostazione del seed per riproducibilità
+    set_seed(seed)
 
     # checkpoint per l'inferenza
     checkpoint_to_load = CHECKPOINT_FOR_DISEASE_INFERENCE
@@ -27,7 +33,7 @@ def infer_disease(images):
     model.eval()
 
     # mappa delle malattie
-    disease_map = ['AMD','DME','ERM','NO','RAO','RVO','VID']
+    disease_labels = OCTDL.labels
 
     # preprocessing delle immagini
     preprocessor = get_preprocessor(model_name)
@@ -45,7 +51,6 @@ def infer_disease(images):
         probs = logits.softmax(dim=-1)
         preds = probs.argmax(dim=-1)
 
-        return [disease_map[pred] for pred in preds], list(probs.max(dim=-1).values*100)
-
+        return [disease_labels[pred] for pred in preds], list(probs.max(dim=-1).values*100)
 
     return infer_vitmae(checkpoint_to_load, images)

@@ -14,12 +14,17 @@ _preprocessor  = {
     "vitmae-light": ViTMAE.preprocess_batch,
     "vitmae-heavy": ViTMAE.preprocess_batch
 }
+_augmenter    = {
+    "vitmae-light": ViTMAE.augment,
+    "vitmae-heavy": ViTMAE.augment
+}
 
 # lista dei mapping
 maps = [
     _model_classes,
     _train_preprocessor,
-    _preprocessor
+    _preprocessor,
+    _augmenter
 ]
 
 # verifica che le chiavi dei dizionari corrispondano ai modelli disponibili
@@ -60,3 +65,7 @@ def get_test_preprocessor(model_name):
 @check_model_available
 def get_preprocessor(model_name):
     return _preprocessor[model_name]
+
+@check_model_available
+def get_augmenter(model_name):
+    return _augmenter[model_name]

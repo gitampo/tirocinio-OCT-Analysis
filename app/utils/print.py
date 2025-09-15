@@ -25,9 +25,6 @@ def print_success_box(message, indent=' ', end='\n'):
 
     print_success(textwrap.indent(top + cnt + bot, indent), end=end)
 
-def print_info(message, end="\n"):
-    print(DIM + message + RST, end=end)
-
 def print_list(items):
     for item in items:
         print(f"- {item}")
@@ -48,11 +45,14 @@ def print_table(headings, rows, indent=' ', end='\n'):
     if not rows: 
         buffer_append(" +-------------------+ \n"
                       " |  Tabella vuota... | \n"
+                      " |-------------------| \n"
                       " +-------------------+ \n", end="")
+        # stampa la tabella vuota (stampa indentata)
+        print(textwrap.indent(buffer, indent), end=end)
         return
 
     # calcola la larghezza delle colonne
-    column_widths = [max([len(str(row[i])) for row in rows]) for i in range(len(headings))]
+    column_widths = [max([len(str(row[i])) for row in rows]+[len(heading)]) for i, heading in enumerate(headings)]
     table_width = reduce(lambda tot,x: tot+x, column_widths) + len(headings)-1 + len(headings)*2
 
     # stampa la riga di intestazione

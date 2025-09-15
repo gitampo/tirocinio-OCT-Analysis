@@ -1,0 +1,9 @@
+Fold 1/5
+Risultati del fold 1: {'eval_loss': 0.5359799861907959, 'eval_model_preparation_time': 0.0017, 'eval_accuracy': 0.8305084745762712, 'eval_balanced_accuracy': 0.6001517562774316, 'eval_f1_score_micro': 0.8305084745762712, 'eval_recall_micro': 0.8305084745762712, 'eval_precision_micro': 0.8305084745762712, 'eval_f1_score_macro': 0.5677667180210272, 'eval_recall_macro': 0.6001517562774316, 'eval_precision_macro': 0.5548690955834389, 'eval_f1_score_weighted': 0.8238796247190164, 'eval_recall_weighted': 0.8305084745762712, 'eval_precision_weighted': 0.8268150639405982, 'eval_MCC': 0.7094082114175709, 'eval_confusion_matrix': array([[243,   5,   2,  11,   0,   2,   0],
+       [  0,  16,   4,   2,   0,   2,   1],
+       [  4,   4,  18,   6,   0,   0,   1],
+       [  1,   1,   1,  52,   0,   0,   0],
+       [  0,   1,   5,   1,   0,   1,   1],
+       [  1,   7,   2,   0,   0,   7,   2],
+       [  1,   0,   0,   1,   0,   0,   7]]), 'eval_runtime': 5.4223, 'eval_samples_per_second': 76.167, 'eval_steps_per_second': 9.59}
+Fold 2/5

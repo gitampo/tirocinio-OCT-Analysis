@@ -1,173 +1,211 @@
+import numpy as np
+from torch.utils.data import Dataset, Subset
+from transformers import Trainer, TrainingArguments
+from pathlib import Path
 from PIL import Image
 from sklearn.model_selection import GroupKFold
-import torch
-import datasets
-from transformers import Trainer
-from sklearn.metrics import make_scorer
-import numpy as np
+from contextlib import contextmanager
 
-from configs.paths import PT_datasets_dir
-from utils.print import print_info
-from pathlib import Path
-
+from utils.funs import get_available_filename
+from utils.log import log_print
+from configs.paths import PT_datasets_dir, PT_log_dir
+from utils.print import formatted, humanized, print_info, print_separator, print_success_box, print_table
+from .training import load_training_args
 from .datasets import OCTDL
-from .utils import set_seed, load_training_args
-from . import (
-    DEFAULT_DATASET,
-    DEFAULT_KFOLDS,
-    DEFAULT_SEED,
-    NUM_PROC,
-    PREPROCESS_BATCH_SIZE,
-    TEST_BATCH_SIZE,
-    TRAIN_BATCH_SIZE,
+from .training import set_seed, load_training_args
+from .testing import (
+    compute_metrics_for_test, 
+    print_results,
+    metrics_names,
+    metrics_formats
 )
-from .testing import metrics, metrics_names
 from .model_factory import (
+    load_model, 
     get_preprocessor, 
-    load_model 
+    get_augmenter
 )
+from . import DEFAULT_KFOLDS, DEFAULT_SEED, TEST_BATCH_SIZE
 
-class ModelWrapperForKFoldCV():
+class KFoldDataset(Dataset):
+    def __init__(self, model_name):
+        
+        # otteniene il preprocessore delle immagini
+        self.preprocessor = get_preprocessor(model_name)
+        self.augmenter = get_augmenter(model_name)
+        self.augmentation_enabled = True # per abilitare/disabilitare l'augmentation
 
+        # path completo sino al dataset
+        path_to_dataset = Path(PT_datasets_dir) / OCTDL.DATASET_NAME
+
+        # lista di tutti i path delle immagini
+        self.image_paths = (
+            list(path_to_dataset.rglob("*.png")) +
+            list(path_to_dataset.rglob("*.jpg")) +
+            list(path_to_dataset.rglob("*.jpeg"))
+        )
+
+        # verifica che siano state trovate immagini
+        if not self.image_paths:
+            raise ValueError(f"Nessuna immagine trovata in {path_to_dataset}")
+
+        # elementi del dataset (etichette e pazienti corrispondenti alle immagini)
+        self.labels = [OCTDL.label2id(self.image_paths[idx].parent.name) for idx in range(len(self.image_paths))]
+        self.patients = [OCTDL.get_patient_id(self.image_paths[idx].stem) for idx in range(len(self.image_paths))]
+
+        # indici casuali per il rimescolamento del dataset
+        self.num_examples = len(self.image_paths)
+        indices = np.random.permutation(self.num_examples)
+        
+        # rimescolamento del dataset
+        self.image_paths = np.array(self.image_paths)[indices]
+        self.labels = np.array(self.labels)[indices]
+        self.patients = np.array(self.patients)[indices]
+
+    def __len__(self):
+        return len(self.image_paths)
+
+    def __getitem__(self, idx):
+        # caricamento dell'immagine
+        try:
+            image = Image.open(self.image_paths[idx]).convert("RGB")
+        except Exception as e:
+            print(f"Errore nel caricamento dell'immagine {self.image_paths[idx]}: {e}")
+            image = Image.new("RGB", (224, 224))  # crea una dummy image
+
+        # applicazione dell'augmentation (se abilitata)
+        if self.augmentation_enabled: 
+            image = self.augmenter({"image": [image]})
+        else: 
+            image = {"image": [image]}
+
+        # preprocessing dell'immagine
+        image = self.preprocessor(image)["pixel_values"].squeeze()
+        label = self.labels[idx]
+
+        return {"pixel_values": image, "labels": label}
+    
+    @contextmanager
+    def eval_mode(self):
+        # Codice eseguito all'ingresso del blocco 'with'
+        self.augmentation_enabled = False
+        try:
+            yield  # esecuzione del blocco 'with'
+        finally:
+            # Codice eseguito all'uscita dal blocco 'with', anche in caso di eccezioni
+            self.augmentation_enabled = True
+
+class KFoldModelWrapper():
     def __init__(self, model_name):
         self.model_name = model_name
+        self.model = None
+
+    def fit(self, train_dataset):
+
+        # caricamento del modello e degli argomenti di training
         self.model = load_model(self.model_name)
-        self.fold_idx = 1
-
-    def fit(self, image_paths, labels):
-
-        # caricamento degli argomenti di training
-        print_info(f"Caricamento degli argomenti di training per '{self.model_name}'...")
         training_args = load_training_args()
         training_args.do_eval = False
         training_args.eval_strategy = "no"
 
-        # caricamento del modello
-        print_info(f"Caricamento del modello '{self.model_name}'...")
-
-        # composizione del dataset di training
-        print_info(f"Caricamento del dataset di training per '{self.model_name}'...")
-        data_dict = {"image_paths": list(map(str, image_paths)), "labels": labels}
-        dataset = datasets.Dataset.from_dict(data_dict)
-        training_dataset = dataset.map(self.preprocess_batch, batched=True, batch_size=PREPROCESS_BATCH_SIZE, num_proc=NUM_PROC)
-
         # creazione del trainer
-        print_info(f"Caricamento degli argomenti di training per '{self.model_name}'...")
         trainer = Trainer(
             model=self.model,
             args=training_args,
-            train_dataset=training_dataset,
-            eval_dataset=None,
+            train_dataset=train_dataset
         )
-        
-        # esecuzione del training
-        print_info(f"Inizio training n.{self.fold_idx}...")
+
+        # training vero e proprio
+        print_info("Inizio del training...")
         trainer.train()
-        print_info(f"Fine training n.{self.fold_idx}...")
 
-        del training_dataset
-
-    def score(self, image_paths, labels):
-
-        # argomenti di training ma in modalità eval
-        training_args = load_training_args()
-        training_args.do_train = False
-        training_args.do_eval = False
-        training_args.eval_strategy = "no"
-
-        # dataset
-        print_info(f"Caricamento del dataset di testing per '{self.model_name}'...")
-        data_dict = {"image_paths": list(map(str, image_paths)), "labels": labels}
-        dataset = datasets.Dataset.from_dict(data_dict)
-        testing_dataset = dataset.map(
-            self.preprocess_batch, 
-            batched=True, 
-            batch_size=PREPROCESS_BATCH_SIZE, 
-            num_proc=NUM_PROC
-        )
+    def score(self, val_dataset):
+        import tempfile
 
         # creazione del trainer
         trainer = Trainer(
             model=self.model,
-            args=training_args,
+            args=TrainingArguments(
+                output_dir=tempfile.mkdtemp(),
+                per_device_eval_batch_size=TEST_BATCH_SIZE,
+                do_train=False,
+                do_eval=True,
+            ),
+            compute_metrics=compute_metrics_for_test,
         )
-        
-        # predizioni del modello
-        print_info(f"Inizio predizioni n.{self.fold_idx}...")
-        predictions = trainer.predict(testing_dataset)
-        y_preds = predictions.predictions.argmax(axis=-1)
-        y_true = predictions.label_ids
-        print_info(f"Fine predizioni n.{self.fold_idx}...")
 
-        # calcolo delle metriche
-        print_info(f"Calcolo metriche del fold n.{self.fold_idx}...")
-        fold_scores = {}
-        for metric in metrics_names:
-            score = metrics[metric]["fun"](y_preds, y_true, **metrics[metric]["kwargs"])
-            fold_scores[metric] = score
+        # valutazione sul validation set
+        print_info("Inizio della valutazione...")
+        output = trainer.evaluate(val_dataset)
 
-        del testing_dataset
+        return output
 
-        return fold_scores
+def preprocess_final_results(outputs):
 
-    def preprocess_batch(self, examples):
+    # calcolo della media delle metriche sui vari fold
+    averaged_metrics = []
+    for key in outputs[0].keys():
+        metric_name = key.replace('eval_','')
+        if metric_name not in metrics_names: continue
 
-        # ottienimento del preprocessore
-        preprocessor = get_preprocessor(self.model_name)
+        mean = np.mean([output[key] for output in outputs]).item()
+        dev_std = np.std([output[key] for output in outputs]).item()
 
-        # preprocessing delle immagini
-        examples["image"] = [Image.open(image_path).convert("RGB") for image_path in examples["image_paths"]]
-        processed = preprocessor(examples)
+        averaged_metrics.append((
+            humanized(metric_name),
+            formatted(mean, metrics_formats[metric_name]),
+            formatted(dev_std, metrics_formats[metric_name]), 
+        ))
 
-        return processed
+    return sorted(averaged_metrics)
 
-def get_kfoldcv_dataset():
+def print_final_results(outputs):
 
-    # path completo sino al dataset
-    path_to_dataset = Path(PT_datasets_dir) / OCTDL.DATASET_NAME
+    # preprocessing dei risultati (formattazione e cambio rappresentazione) e stampa
+    metrics_rows = preprocess_final_results(outputs)
+    print_table(headings=["METRICA", "VALORE MEDIO", "DEV.STD."], rows=metrics_rows)
 
-    # elenco delle immagini, etichette e pazienti
-    image_paths = (
-        list(path_to_dataset.rglob("*.png")) +
-        list(path_to_dataset.rglob("*.jpg")) +
-        list(path_to_dataset.rglob("*.jpeg"))
-    )
+def kfold_cv(model_name, num_folds=DEFAULT_KFOLDS, seed=DEFAULT_SEED):
+    log_file = "kfoldcv.log"
+    log_file =get_available_filename(PT_log_dir, log_file)
 
-    # elementi del dataset (etichette e pazienti corrispondenti alle immagini)
-    labels = [OCTDL.label2id(image_paths[idx].parent.name) for idx in range(len(image_paths))]
-    patients = [OCTDL.get_patient_id(image_paths[idx].stem) for idx in range(len(image_paths))]
-
-    # conversione in array numpy
-    image_paths, labels, patients = np.array(image_paths), np.array(labels), np.array(patients)
-
-    return image_paths, labels, patients
-
-def kfold_cv(model_name, dataset_name=DEFAULT_DATASET, seed=DEFAULT_SEED, num_folds=DEFAULT_KFOLDS):
-
-    # impostazione del seed per riproducibilità
+    # impostazione del seed per la ripoducibilità
     set_seed(seed)
 
-    # caricamento del dataset
-    print_info("Caricamento del dataset...")
-    image_paths, labels, patients = get_kfoldcv_dataset()
-    
-    # esecuzione della cross validation
-    print_info(f"Esecuzione della {num_folds}-fold cross validation...")
-
-    # cross validation
-    scores = []
+    # istanziazione delle K-fold (GroupKFold per evitare data leakage tra pazienti)
     gkf = GroupKFold(n_splits=num_folds)
-    for train_idx, test_idx in gkf.split(image_paths, labels, groups=patients):
 
-        # istanziazione del modello per la cross validation
-        model = ModelWrapperForKFoldCV(model_name)
+    # caricamento del dataset e gruppi (pazienti)
+    dataset = KFoldDataset(model_name)
 
-        # suddivisione del dataset in training e test
-        X_train, X_test = image_paths[train_idx], image_paths[test_idx]
-        y_train, y_test = labels[train_idx], labels[test_idx]
+    # K-fold cross validation 
+    fold_idx = 1
+    outputs = []
+    for train_idx, val_idx in gkf.split(X=dataset.image_paths, groups=dataset.patients):
+        print_info(f"Fold {fold_idx}/{num_folds}")
+        log_print(log_file, f"Fold {fold_idx}/{num_folds}")
 
-        # addestramento del modello e valutazione per la fold attuale
-        model.fit(X_train, y_train)
-        scores.append(model.score(X_test, y_test))
+        # creazione dei subset per il training e la validazione
+        fold_dataset_train = Subset(dataset, train_idx)
+        fold_dataset_val = Subset(dataset, val_idx)
 
-    print(scores)
+        # addestramento (fit per il fold attuale)
+        model = KFoldModelWrapper(model_name)
+        model.fit(fold_dataset_train)
+
+        # valutazione (disabilita l'augmentation durante la valutazione)
+        with dataset.eval_mode():  
+            output = model.score(fold_dataset_val)
+
+        # risultati del fold
+        print_results(output, labels=OCTDL.labels)
+        log_print(log_file, f"Risultati del fold {fold_idx}: {output}")
+        if 'eval_confusion_matrix' in output:
+            del output['eval_confusion_matrix']  # non serve per il calcolo della media
+        outputs.append(output)
+        fold_idx += 1
+
+    # stampa della media e della deviazione standard delle metriche
+    print_separator(70)
+    print_success_box(f"K-Fold Cross Validation ({num_folds} folds) completata!")
+    log_print(log_file, f"Risultati finali: {outputs}")
+    print_final_results(outputs)

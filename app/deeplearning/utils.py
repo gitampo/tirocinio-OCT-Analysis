@@ -1,4 +1,3 @@
-from transformers import TrainingArguments
 from pathlib import Path
 import pandas as pd
 import numpy as np
@@ -101,18 +100,3 @@ def set_seed(seed=DEFAULT_SEED):
     torch.cuda.manual_seed_all(seed)
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
-
-def load_training_args():
-    # TODO: è possibile generalizzare questa funzione per rendere gli argomenti maggiormente
-    # configurabili, magari tramite file di configurazione e apposita opzione nell'argparser
-    return TrainingArguments(
-        output_dir=PT_trainer_output_dir,
-        per_device_train_batch_size=8,
-        per_device_eval_batch_size=8,
-        save_strategy="epoch",
-        eval_strategy="epoch",
-        logging_steps=1,
-        num_train_epochs=1,
-        load_best_model_at_end=False,
-        metric_for_best_model="accuracy"
-    )

@@ -1,7 +1,6 @@
-from pyexpat import model
 from sklearn.metrics import accuracy_score
 import torch
-from transformers import Trainer
+from transformers import Trainer, TrainingArguments
 from pathlib import Path
 import re
 
@@ -10,10 +9,12 @@ from . import (
     DEFAULT_SEED,
     DEFAULT_SPLIT,
     NUM_PROC,
-    PREPROCESS_BATCH_SIZE
+    PREPROCESS_BATCH_SIZE,
+    TEST_BATCH_SIZE,
+    TRAIN_BATCH_SIZE
 )
 from .model_factory import get_train_preprocessor, load_model
-from configs.paths import PT_checkpoints_dir
+from configs.paths import PT_checkpoints_dir, PT_trainer_output_dir
 from utils.print import (
     print_separator, 
     print_warning, 
@@ -23,10 +24,26 @@ from utils.print import (
 )
 from .utils import (
     get_checkpoint_path,
-    load_training_args,
     load_splitted_dataset_from_name,
     set_seed
 )
+
+
+def load_training_args():
+    # TODO: è possibile generalizzare questa funzione per rendere gli argomenti maggiormente
+    # configurabili, magari tramite file di configurazione e apposita opzione nell'argparser
+    return TrainingArguments(
+        output_dir=PT_trainer_output_dir,
+        per_device_train_batch_size=TRAIN_BATCH_SIZE,
+        per_device_eval_batch_size=TEST_BATCH_SIZE,
+        save_strategy="epoch",
+        eval_strategy="epoch",
+        logging_strategy="epoch",
+        logging_steps=1,
+        num_train_epochs=20,
+        load_best_model_at_end=False,
+        metric_for_best_model="accuracy"
+    )
 
 def ask_checkpoint_name(model_name):
     # dichiarazione variabili per il salvataggio del checkpoint

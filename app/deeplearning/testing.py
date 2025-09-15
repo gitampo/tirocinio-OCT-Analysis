@@ -118,7 +118,7 @@ def preprocess_results(output):
 
     return confusion_matrix, metrics_rows, stats_rows
 
-def print_results(output, model_name, labels):
+def print_results(output, labels):
 
     # preprocessing dei risultati (formattazione e cambio rappresentazione)
     confusion_matrix, \
@@ -126,18 +126,20 @@ def print_results(output, model_name, labels):
     stats_rows = preprocess_results(output)
 
     # stampa di matrice di confusione
-    print("\n MATRICE DI CONFUSIONE \n (predizioni a lato; verità sopra):\n")
-    print_confusion_matrix(confusion_matrix, labels=labels)
-    print_separator(end="\n\n")
+    if confusion_matrix is not None:
+        print("\n MATRICE DI CONFUSIONE \n (predizioni a lato; verità sopra):\n")
+        print_confusion_matrix(confusion_matrix, labels=labels)
+        print_separator(end="\n\n") # separatore
 
     # stampa della tabella delle metriche
     print_table(headings=["METRICA", "VALORE"], rows=metrics_rows)
-    print_separator(end="\n\n")
+    print_separator(end="\n\n") # separatore
 
     # stampa della tabella delle statistiche
     print_table(headings=["STATISTICA", "VALORE"], rows=stats_rows)
 
 def test(model_name, checkpoint_name, dataset_name=DEFAULT_DATASET, dataset_split=DEFAULT_SPLIT, seed=DEFAULT_SEED):
+    import tempfile
 
     # impostazione del seed per riproducibilità
     set_seed(seed)
@@ -150,6 +152,7 @@ def test(model_name, checkpoint_name, dataset_name=DEFAULT_DATASET, dataset_spli
     trainer = Trainer(
         model=model,
         args=TrainingArguments(
+            output_dir=tempfile.mkdtemp(),
             per_device_eval_batch_size=TEST_BATCH_SIZE, 
             do_train=False,
             do_eval=True),
@@ -162,4 +165,4 @@ def test(model_name, checkpoint_name, dataset_name=DEFAULT_DATASET, dataset_spli
     print_success_box("Testing completato!")
 
     # stampa dei risultati
-    print_results(output, model_name, labels)
+    print_results(output, labels)

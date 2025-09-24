@@ -8,3 +8,5 @@ app/deeplearning/data/datasets/*
 app/database/data/images/*
 app/database/data/octanalysis.db
 TODO.txt
+app/logs/*
+!app/logs/.gitkeep

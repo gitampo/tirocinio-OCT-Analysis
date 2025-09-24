@@ -1,3 +1,4 @@
+import json
 import numpy as np
 from torch.utils.data import Dataset, Subset
 from transformers import Trainer, TrainingArguments
@@ -9,7 +10,7 @@ from contextlib import contextmanager
 from utils.funs import get_available_filename
 from utils.log import log_print
 from configs.paths import PT_datasets_dir, PT_log_dir
-from utils.print import formatted, humanized, print_info, print_separator, print_success_box, print_table
+from utils.print import RST, formatted, humanized, print_info, print_separator, print_success_box, print_table
 from .training import load_training_args
 from .datasets import OCTDL
 from .training import set_seed, load_training_args
@@ -139,50 +140,122 @@ class KFoldModelWrapper():
 
         return output
 
-def preprocess_final_results(outputs):
+def preprocess_final_results(outputs, classes_outputs):
 
     # calcolo della media delle metriche sui vari fold
     averaged_metrics = []
     for key in outputs[0].keys():
         metric_name = key.replace('eval_','')
-        if metric_name not in metrics_names: continue
+        if metric_name not in metrics_names: continue # ignora le statistiche che non sono metriche
 
+        # calcolo di media e deviazione standard per la metrica corrente
         mean = np.mean([output[key] for output in outputs]).item()
         dev_std = np.std([output[key] for output in outputs]).item()
 
+        # memorizzazione della metrica formattata (per la stampa)
         averaged_metrics.append((
             humanized(metric_name),
             formatted(mean, metrics_formats[metric_name]),
             formatted(dev_std, metrics_formats[metric_name]), 
         ))
 
-    return sorted(averaged_metrics)
+    # calcolo della media delle metriche per classe sui vari fold
+    averaged_classes_metrics = []
+    for key in classes_outputs[0].keys():
+        metric_name = key.replace('eval_','')
+        if metric_name not in metrics_names: continue # ignora le statistiche che non sono metriche
 
-def print_final_results(outputs):
+        means = []
+        dev_stds = []
+        for label in OCTDL.labels:
+            # calcolo di media e deviazione standard per la metrica e per la classe corrente
+            mean = np.mean([class_output[key][OCTDL.label2id(label)] for class_output in classes_outputs]).item()
+            dev_std = np.std([class_output[key][OCTDL.label2id(label)] for class_output in classes_outputs]).item()
+
+            # medie e deviazioni standard per ogni classe
+            means.append(formatted(mean, metrics_formats[metric_name]))
+            dev_stds.append(formatted(dev_std, metrics_formats[metric_name]))
+        
+        # memorizzazione della metrica formattata (per la stampa)
+        averaged_classes_metrics.append(
+            (humanized(metric_name.replace('classes_','')), 
+             *[ f"{mean} (±{dev_std})" for mean, dev_std in zip(means, dev_stds)]
+             ))
+
+    return sorted(averaged_metrics), sorted(averaged_classes_metrics)
+
+def print_final_results(outputs, classes_outputs):
 
     # preprocessing dei risultati (formattazione e cambio rappresentazione) e stampa
-    metrics_rows = preprocess_final_results(outputs)
+    metrics_rows, classes_rows = preprocess_final_results(outputs, classes_outputs)
     print_table(headings=["METRICA", "VALORE MEDIO", "DEV.STD."], rows=metrics_rows)
+    print_table(headings=["", *OCTDL.labels], rows=classes_rows)
+
+def print_class_distribution_per_fold(gkf, dataset):
+    from functools import reduce
+
+    folds_distributions = []
+    tot = len(dataset.labels)
+    for fold_idx, (train_idx, val_idx) in enumerate(gkf.split(X=dataset.image_paths, groups=dataset.patients), start=1):
+
+        # subset di training e di validazione
+        fold_dataset_train = Subset(dataset, train_idx)
+        fold_dataset_val = Subset(dataset, val_idx)
+
+        # funzione per contare le occorrenze delle classi nel dataset
+        def count_occurrences(label, fold_dataset):
+            labels = [dataset.labels[i] for i in fold_dataset.indices]
+            value = reduce(lambda acc, x: acc + (1 if x == OCTDL.label2id(label) else 0), labels, 0)
+            return  value
+
+        # calcolo della distribuzione delle classi per il fold attuale
+        train_counts = []
+        val_counts = []
+        for label in OCTDL.labels:
+            # memorizzazione dei conteggi di ciascuna classe per il fold attuale
+            train_counts.append(count_occurrences(label, fold_dataset_train))
+            val_counts.append(count_occurrences(label, fold_dataset_val))
+
+        # memorizzazione della distribuzione di tutte le classi classi per il fold attuale
+        format_str = lambda count: "%-4d %7s" %  (count, f"({count/tot*100:.2f}%)")
+        total = lambda l : reduce(lambda acc, x: acc + x, l, 0)
+        folds_distributions.append((f"fold {fold_idx} - train", *[format_str(count) for count in train_counts], "="+format_str(total(train_counts))))
+        folds_distributions.append((f"fold {fold_idx} - val", *[format_str(count) for count in val_counts], "="+format_str(total(val_counts))))
+        folds_distributions.append((*['' for _ in range(len(OCTDL.labels)+2)],)) # riga vuota
+
+    # stampa della distribuzione delle classi per ogni fold
+    print_table(headings=["", *OCTDL.labels, ""], rows=folds_distributions)
 
 def kfold_cv(model_name, num_folds=DEFAULT_KFOLDS, seed=DEFAULT_SEED):
-    log_file = "kfoldcv.log"
-    log_file =get_available_filename(PT_log_dir, log_file)
-
     # impostazione del seed per la ripoducibilità
     set_seed(seed)
+
+    # caricamento del dataset per la K-fold cross validation (Dataset custom)
+    dataset = KFoldDataset(model_name)
 
     # istanziazione delle K-fold (GroupKFold per evitare data leakage tra pazienti)
     gkf = GroupKFold(n_splits=num_folds)
 
-    # caricamento del dataset e gruppi (pazienti)
-    dataset = KFoldDataset(model_name)
+    # funzione per stampare la distribuzione delle classi in ogni fold
+    print_class_distribution_per_fold(gkf, dataset)
+
+    # preparazione del file di log
+    log_file = "kfoldcv.log"
+    log_file = get_available_filename(PT_log_dir, log_file)
+    log_filestem = Path(log_file).stem
+    log_print(log_filestem, 
+              f"MODEL: {model_name}           \n"
+              f"KFOLDS: {num_folds}           \n"
+              f"SEED: {seed}                  \n"
+              f"DATASET: {OCTDL.DATASET_NAME} \n")
 
     # K-fold cross validation 
     fold_idx = 1
     outputs = []
+    classes_outputs = []
     for train_idx, val_idx in gkf.split(X=dataset.image_paths, groups=dataset.patients):
         print_info(f"Fold {fold_idx}/{num_folds}")
-        log_print(log_file, f"Fold {fold_idx}/{num_folds}")
+        log_print(log_filestem, f"Fold {fold_idx}/{num_folds}")
 
         # creazione dei subset per il training e la validazione
         fold_dataset_train = Subset(dataset, train_idx)
@@ -198,14 +271,23 @@ def kfold_cv(model_name, num_folds=DEFAULT_KFOLDS, seed=DEFAULT_SEED):
 
         # risultati del fold
         print_results(output, labels=OCTDL.labels)
-        log_print(log_file, f"Risultati del fold {fold_idx}: {output}")
+        log_print(log_filestem, f"Risultati del fold {fold_idx}: {output}")
+        print_separator(70)
+
+        # rimozione della matrice di confusione dai risultati
         if 'eval_confusion_matrix' in output:
             del output['eval_confusion_matrix']  # non serve per il calcolo della media
+
+        # separa i risultati delle metriche per classe (se presenti)
+        keys = list(output.keys())
+        class_output = {k:output.pop(k) for k in keys if k.startswith('eval_classes_')}
+        
+        # memorizza i risultati del fold
+        classes_outputs.append(class_output)
         outputs.append(output)
         fold_idx += 1
 
     # stampa della media e della deviazione standard delle metriche
-    print_separator(70)
     print_success_box(f"K-Fold Cross Validation ({num_folds} folds) completata!")
-    log_print(log_file, f"Risultati finali: {outputs}")
-    print_final_results(outputs)
+    log_print(log_filestem, f"Risultati finali: {outputs}")
+    print_final_results(outputs, classes_outputs)

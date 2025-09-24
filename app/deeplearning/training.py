@@ -28,7 +28,6 @@ from .utils import (
     set_seed
 )
 
-
 def load_training_args():
     # TODO: è possibile generalizzare questa funzione per rendere gli argomenti maggiormente
     # configurabili, magari tramite file di configurazione e apposita opzione nell'argparser

@@ -39,19 +39,22 @@ from .utils import (
 
 # dizionario globale e altre variabili per le metriche
 metrics = {  
-    "accuracy":           {"format":".2f%", "fun":accuracy_score,          "kwargs":{}                     },
-    "balanced_accuracy":  {"format":".2f%", "fun":balanced_accuracy_score, "kwargs":{}                     },
-    "f1_score_micro":     {"format":".2f%", "fun":f1_score,                "kwargs":{"average":"micro"}    },
-    "recall_micro":       {"format":".2f%", "fun":recall_score,            "kwargs":{"average":"micro"}    },
-    "precision_micro":    {"format":".2f%", "fun":precision_score,         "kwargs":{"average":"micro"}    },
-    "f1_score_macro":     {"format":".2f%", "fun":f1_score,                "kwargs":{"average":"macro"}    },
-    "recall_macro":       {"format":".2f%", "fun":recall_score,            "kwargs":{"average":"macro"}    },
-    "precision_macro":    {"format":".2f%", "fun":precision_score,         "kwargs":{"average":"macro"}    },
-    "f1_score_weighted":  {"format":".2f%", "fun":f1_score,                "kwargs":{"average":"weighted"} },
-    "recall_weighted":    {"format":".2f%", "fun":recall_score,            "kwargs":{"average":"weighted"} },
-    "precision_weighted": {"format":".2f%", "fun":precision_score,         "kwargs":{"average":"weighted"} },
-    "MCC":                {"format":".3f" , "fun":matthews_corrcoef,       "kwargs":{}                     },
-    "confusion_matrix":   {"format":None  , "fun":confusion_matrix,        "kwargs":{}                     },
+    "accuracy":           {"format":".3f", "fun":accuracy_score,          "kwargs":{}                     },
+    "balanced_accuracy":  {"format":".3f", "fun":balanced_accuracy_score, "kwargs":{}                     },
+    "classes_f1_score":   {"format":".3f", "fun":f1_score,                "kwargs":{"average":None}       },
+    "classes_recall":     {"format":".3f", "fun":recall_score,            "kwargs":{"average":None}       },
+    "classes_precision":  {"format":".3f", "fun":precision_score,         "kwargs":{"average":None}       },
+    "f1_score_micro":     {"format":".3f", "fun":f1_score,                "kwargs":{"average":"micro"}    },
+    "recall_micro":       {"format":".3f", "fun":recall_score,            "kwargs":{"average":"micro"}    },
+    "precision_micro":    {"format":".3f", "fun":precision_score,         "kwargs":{"average":"micro"}    },
+    "f1_score_macro":     {"format":".3f", "fun":f1_score,                "kwargs":{"average":"macro"}    },
+    "recall_macro":       {"format":".3f", "fun":recall_score,            "kwargs":{"average":"macro"}    },
+    "precision_macro":    {"format":".3f", "fun":precision_score,         "kwargs":{"average":"macro"}    },
+    "f1_score_weighted":  {"format":".3f", "fun":f1_score,                "kwargs":{"average":"weighted"} },
+    "recall_weighted":    {"format":".3f", "fun":recall_score,            "kwargs":{"average":"weighted"} },
+    "precision_weighted": {"format":".3f", "fun":precision_score,         "kwargs":{"average":"weighted"} },
+    "MCC":                {"format":".3f", "fun":matthews_corrcoef,       "kwargs":{}                     },
+    "confusion_matrix":   {"format":None,  "fun":confusion_matrix,        "kwargs":{}                     },
 }
 metrics_names = metrics.keys()
 metrics_formats = {metric: metrics[metric]['format'] for metric in metrics}
@@ -103,6 +106,17 @@ def preprocess_results(output):
     # ottiene (pop) la matrice di confusione dai risultati
     confusion_matrix = output.pop('confusion_matrix', None)
 
+    # ottiene (pop) le metriche per classe dai risultati
+    classes_rows = []
+    output_keys = list(output.keys()) # crea una copia delle chiavi perché si sta modificando il dizionario
+    for metric in output_keys:
+        if metric.startswith('classes_'):
+            name = metric.replace('classes_','')
+            values = output.pop(metric, None)
+            format = metrics_formats[metric]
+            row = tuple([humanized(name)] + [formatted(value,format) for value in values])
+            classes_rows.append(row)
+
     # ottiene coppie (metrica, valore) e (statistica, valore) per metriche e statistiche calcolate
     # N.B. distingue metriche e statistiche dipendentemente dal fatto che i nomi siano in metrics_names
     computed_metrics = [(k,v) for k,v in output.items() if k in metrics_names]
@@ -116,24 +130,26 @@ def preprocess_results(output):
     # lavora le statistiche per ottenere valori ben formattati per la stampa
     stats_rows = [(humanized(s),v) for s,v in sorted(computed_stats)]
 
-    return confusion_matrix, metrics_rows, stats_rows
+    return confusion_matrix, metrics_rows, stats_rows, classes_rows
 
 def print_results(output, labels):
 
     # preprocessing dei risultati (formattazione e cambio rappresentazione)
     confusion_matrix, \
     metrics_rows,     \
-    stats_rows = preprocess_results(output)
+    stats_rows,       \
+    classes_rows = preprocess_results(output)
 
     # stampa di matrice di confusione
     if confusion_matrix is not None:
         print("\n MATRICE DI CONFUSIONE \n (predizioni a lato; verità sopra):\n")
         print_confusion_matrix(confusion_matrix, labels=labels)
-        print_separator(end="\n\n") # separatore
 
     # stampa della tabella delle metriche
     print_table(headings=["METRICA", "VALORE"], rows=metrics_rows)
-    print_separator(end="\n\n") # separatore
+
+    # stampa della tabella delle metriche per classe
+    print_table(headings=["", *labels], rows=classes_rows)
 
     # stampa della tabella delle statistiche
     print_table(headings=["STATISTICA", "VALORE"], rows=stats_rows)

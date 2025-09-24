@@ -81,6 +81,9 @@ def humanized(string):
     return string
     
 def formatted(value, format):
+    # guadia per i casi banali
+    if value is None or format is None: return str(value)
+
     # il formato è una percentuale 
     if format.endswith('%'):
         sub_format = format.replace('%','')

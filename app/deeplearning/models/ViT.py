@@ -1,55 +1,22 @@
 import torch
 from torchvision import transforms
-from transformers import ViTImageProcessor, ViTMAEModel, ViTMAEConfig
+from transformers import ViTImageProcessor, ViTModel, ViTConfig
 
 # Configurazione del modello
-config = ViTMAEConfig.from_pretrained("facebook/vit-mae-base")
+config = ViTConfig.from_pretrained("google/vit-base-patch16-224")
 
 # Processor per le immagini
-processor = ViTImageProcessor.from_pretrained('facebook/vit-mae-base')
+processor = ViTImageProcessor.from_pretrained('google/vit-base-patch16-224')
 
 # ----------------------------------------------------------------------------
 # ----------------------------------------------------------------------------
 
-# ViTMAE per la classificazione delle immagini (head pesante)
-class ViTMAEForImageClassification_heavy(torch.nn.Module):
+# ViT per la classificazione delle immagini (head leggera)
+class ViTForImageClassification(torch.nn.Module):
     def __init__(self, num_labels=7):
         super().__init__()
 
-        self.backbone = ViTMAEModel.from_pretrained("facebook/vit-mae-base")
-        self.classifier = torch.nn.Sequential(
-            torch.nn.Linear(self.backbone.config.hidden_size, 256),
-            torch.nn.ReLU(),
-            torch.nn.Linear(256,256),
-            torch.nn.ReLU(),
-            torch.nn.Linear(256,256),
-            torch.nn.ReLU(),
-            torch.nn.Linear(256, num_labels)
-        )
-
-    def freeze_backbone(self):
-        for param in self.backbone.parameters():
-            param.requires_grad = False
-
-    def forward(self, pixel_values, labels=None):
-        outputs = self.backbone(pixel_values)
-        logits = self.classifier(outputs.last_hidden_state[:, 0])
-        loss = None
-        if labels is not None:
-            loss = self.compute_loss(logits, labels)
-        return {"loss": loss, "logits": logits}
-
-    def compute_loss(self, logits, labels):
-        return torch.nn.functional.cross_entropy(logits, labels)
-
-# ----------------------------------------------------------------------------
-
-# ViTMAE per la classificazione delle immagini (head leggera)
-class ViTMAEForImageClassification_light(torch.nn.Module):
-    def __init__(self, num_labels=7):
-        super().__init__()
-
-        self.backbone = ViTMAEModel.from_pretrained("facebook/vit-mae-base")
+        self.backbone = ViTModel.from_pretrained("google/vit-base-patch16-224")
         self.classifier = torch.nn.Sequential(
             torch.nn.Linear(self.backbone.config.hidden_size, 128),
             torch.nn.ReLU(),

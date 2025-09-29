@@ -70,6 +70,10 @@ def ask_checkpoint_name(model_name):
             input()
             continue
 
+        # crea la cartella del modello se non esiste
+        if not (Path(PT_checkpoints_dir) / model_name).exists():
+            (Path(PT_checkpoints_dir) / model_name).mkdir(parents=True, exist_ok=True)
+
         # controlla se il checkpoint esiste già
         if new_checkpoint_path in (Path(PT_checkpoints_dir) / model_name).iterdir():
             print_warning("Esiste già un checkpoint con questo nome.")

@@ -8,7 +8,7 @@ from utils.funs import *
 from database import db_manager
 from datetime import datetime
 from tkinter import filedialog, messagebox
-from classes.ScrollableFrame import ScrollableFrame
+from gui.ScrollableFrame import ScrollableFrame
 
 import os
 import shutil

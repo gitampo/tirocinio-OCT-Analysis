@@ -2,7 +2,7 @@ import tkinter as tk
 from pathlib import Path
 from configs.colors import *
 from configs.sizes import *
-from classes.ImageCanvas import ImageCanvas
+from gui.ImageCanvas import ImageCanvas
 
 class BscanDialog(tk.Toplevel):
 

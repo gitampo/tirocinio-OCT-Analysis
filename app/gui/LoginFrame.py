@@ -4,9 +4,9 @@ from configs.sizes import *
 from configs.fonts import *
 from configs.tables import *
 from configs.paths import *
-from classes.TableFrame import *
-from classes.ImageCanvas import *
-from classes.AddReportDialog import *
+from gui.TableFrame import *
+from gui.ImageCanvas import *
+from gui.AddReportDialog import *
 from utils.funs import *
 
 class LoginFrame(tk.Frame):

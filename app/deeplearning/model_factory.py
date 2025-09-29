@@ -1,22 +1,33 @@
+from .models import MLP
 from .models import ViTMAE
-from . import AVAILABLE_MODELS
+from .models import ViT
+
+AVAILABLE_MODELS = ['vitmae-light', 'vitmae-heavy', 'vit', 'mlp']
 
 # configurazione dei dizionari per il training di vitmae
 _model_classes    = {
     "vitmae-light": ViTMAE.ViTMAEForImageClassification_light,
-    "vitmae-heavy": ViTMAE.ViTMAEForImageClassification_heavy
+    "vitmae-heavy": ViTMAE.ViTMAEForImageClassification_heavy,
+    "vit": ViT.ViTForImageClassification,
+    "mlp": MLP.MLPImageClassification
 }
 _train_preprocessor = {
     "vitmae-light": lambda examples: ViTMAE.preprocess_batch(ViTMAE.augment(examples)),
-    "vitmae-heavy": lambda examples: ViTMAE.preprocess_batch(ViTMAE.augment(examples))
+    "vitmae-heavy": lambda examples: ViTMAE.preprocess_batch(ViTMAE.augment(examples)),
+    "vit": lambda examples: ViT.preprocess_batch(ViT.augment(examples)),
+    "mlp": lambda examples: MLP.preprocess_batch(MLP.augment(examples))
 }
 _preprocessor  = {
     "vitmae-light": ViTMAE.preprocess_batch,
-    "vitmae-heavy": ViTMAE.preprocess_batch
+    "vitmae-heavy": ViTMAE.preprocess_batch,
+    "vit": ViT.preprocess_batch,
+    "mlp": MLP.preprocess_batch
 }
 _augmenter    = {
     "vitmae-light": ViTMAE.augment,
-    "vitmae-heavy": ViTMAE.augment
+    "vitmae-heavy": ViTMAE.augment,
+    "vit": ViT.augment,
+    "mlp": MLP.augment
 }
 
 # lista dei mapping

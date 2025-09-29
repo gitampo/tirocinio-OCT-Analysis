@@ -3,8 +3,8 @@ from configs.colors import *
 from configs.sizes import *
 from configs.fonts import *
 from configs.tables import *
-from classes.TableFrame import *
-from classes.AddReportDialog import *
+from gui.TableFrame import *
+from gui.AddReportDialog import *
 from utils.funs import *
 
 class PatientHistoryFrame(TableFrame):

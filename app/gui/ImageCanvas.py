@@ -4,7 +4,7 @@ from configs.sizes import *
 from configs.fonts import *
 from configs.tables import *
 from utils.funs import *
-from classes.TableFrame import *
+from gui.TableFrame import *
 from PIL import Image, ImageTk
 
 class ImageCanvas(tk.Canvas):

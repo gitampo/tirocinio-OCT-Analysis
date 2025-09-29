@@ -32,7 +32,7 @@ OCT-Analysis
 │
 ├── README.md
 │
-├── requirements.txt
+├── environment.yml
 │
 └── app
     │
@@ -41,7 +41,7 @@ OCT-Analysis
     ├── assets 
     │   └── app_logo.png
     │
-    ├── classes # classi per la GUI Tkinter
+    ├── gui # moduli per la GUI Tkinter
     │   ├── AddReportDialog.py
     │   ├── ImageCanvas.py
     │   ├── LoginFrame.py
@@ -76,9 +76,7 @@ OCT-Analysis
     │       └── select.sql
     │
     ├── deeplearning # package per gestione dei modelli di DL
-    │   ├── checkpoints/...
-    │   ├── datasets/...
-    │   ├── models/... 
+    │   ├── data/...
     │   ├── __init__.py
     │   ├── inference.py
     │   ├── testing.py
@@ -87,6 +85,7 @@ OCT-Analysis
     │
     └── utils # utility generica
         ├── argparser.py
+        ├── logs.py
         ├── print.py
         └── funs.py
 ```
@@ -101,4 +100,4 @@ Per ulteriori informazioni sui package, visitare gli appositi `README.md`:
 Potrebbe essere necessario installare una versione di pytorch-cuda adatta al proprio dispositivo.
 Per questo si rimanda al sito di NVIDIA: [CUDA GPU Compute Capability](https://developer.nvidia.com/cuda-gpus). 
 
-Nota la Compute Capability (CC), dovrebbe essere possibile identificare la versione di pytorch-cuda più adatta.
+Una volta nota la Compute Capability (CC), dovrebbe essere possibile identificare la versione di pytorch-cuda più adatta.

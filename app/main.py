@@ -8,7 +8,7 @@ if __name__ == '__main__':
     handle_args(args)
     
     # lazy loading dei moduli per l'esecuzione dell'app
-    from classes.OCTAnalysisApp import *
+    from gui.OCTAnalysisApp import *
     from configs.paths import PT_database
     import sqlite3
     from database import db_manager

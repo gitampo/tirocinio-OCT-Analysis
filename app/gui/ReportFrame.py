@@ -64,9 +64,11 @@ class ReportFrame(ScrollableFrame):
 
             # immagine bscan
             bscan_image_path = Path(PT_images_dir)/bscan['immagine']
+            # usa l'immagine originale se esiste, altrimenti usa il placeholder
+            display_image_path = bscan_image_path if bscan_image_path.exists() else Path(PT_images_dir) / 'placeholder.jpg'
             bscan_preview = ImageCanvas(
                 bscan_container,
-                bscan_image_path,
+                display_image_path,
                 cursor='hand2',
                 alt='Immagine bscan non trovata...')
             bscan_preview.pack(fill="both", expand=True)
@@ -86,10 +88,25 @@ class ReportFrame(ScrollableFrame):
             if bscan['malattia_predetta'] and bscan['probabilità_predizione']:
                 pred = bscan['malattia_predetta']
                 prob = bscan['probabilità_predizione']
-                lbl_inference.config(text=f"{pred} con {prob:.2f}% di probabilità")
+                text = f"{pred} con {prob:.2f}% di probabilità"
+                
+                # aggiungi informazioni di validazione se presenti
+                if bscan.get('validazione_medico') and bscan.get('malattia_validata'):
+                    validazione = bscan['validazione_medico']
+                    validata = bscan['malattia_validata']
+                    if validazione == 'Approvato':
+                        text += f"\n✓ Approvato dal medico"
+                    elif validazione == 'Corretto':
+                        text += f"\n✎ Corretto dal medico: {validata}"
+                    elif validazione == 'Rifiutato':
+                        text += f"\n✗ Rifiutato dal medico"
+                
+                lbl_inference.config(text=text)
             # altrimenti aggiungi all'elenco di input da usare per l'inferenza
             else:
-                self.inputs += [Image.open(bscan_image_path)]
+                # usa l'immagine originale se esiste, altrimenti usa il placeholder
+                image_path_for_inference = bscan_image_path if Path(bscan_image_path).exists() else Path(PT_images_dir) / 'placeholder.jpg'
+                self.inputs += [Image.open(image_path_for_inference)]
                 self.lbl_list += [(bscan['id'], lbl_inference)]
 
             # associa il click dell'anteprima all'apertura del dialog
@@ -157,13 +174,18 @@ class ReportFrame(ScrollableFrame):
         # esegue l'inferenza delle immagini senza predizione
         preds, probs = infer_disease(self.inputs)
 
-        # ciclo per aggiungere le previsioni al database e alla visualizzazione
-        for (pred, prob, (bscan_id, lbl_inference)) in zip(preds, probs, self.lbl_list):
-            prob = prob.item()
+        # se non ci sono risultati (checkpoint non disponibile), mostra messaggio
+        if not preds or not probs:
+            for bscan_id, lbl_inference in self.lbl_list:
+                lbl_inference.config(text="Modello non disponibile - inferenza non possibile")
+        else:
+            # ciclo per aggiungere le previsioni al database e alla visualizzazione
+            for (pred, prob, (bscan_id, lbl_inference)) in zip(preds, probs, self.lbl_list):
+                prob = prob.item()
 
-            # salva la previsione nel database e aggiorna la label corrispondente
-            db_manager.set_prediction_for_bscan(bscan_id, pred, prob)
-            lbl_inference.config(text=f"{pred} con {prob:.2f}% di probabilità")
+                # salva la previsione nel database e aggiorna la label corrispondente
+                db_manager.set_prediction_for_bscan(bscan_id, pred, prob)
+                lbl_inference.config(text=f"{pred} con {prob:.2f}% di probabilità")
 
         # pulisce gli input
         self.inputs.clear()

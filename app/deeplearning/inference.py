@@ -16,11 +16,17 @@ def infer_disease(images, seed=DEFAULT_SEED):
     # checkpoint per l'inferenza
     checkpoint_to_load = CHECKPOINT_FOR_DISEASE_INFERENCE
     model_name, checkpoint_name = checkpoint_to_load.split('/')
-    checkpoint_path = get_checkpoint_path(model_name, checkpoint_name)
+    
+    try:
+        checkpoint_path = get_checkpoint_path(model_name, checkpoint_name)
+    except ValueError:
+        # Checkpoint non disponibile, restituisci risultati vuoti
+        return ([], [])
 
     # guardia per il checkpoint
     if not Path(checkpoint_path).exists():
-        raise FileNotFoundError(f"Checkpoint non trovato: '{checkpoint_path}'")
+        # Checkpoint non trovato, restituisci risultati vuoti
+        return ([], [])
 
     # guardia per il numero di immagini
     if images is None or len(images) == 0: return ([],[])

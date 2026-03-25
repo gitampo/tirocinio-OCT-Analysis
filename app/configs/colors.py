@@ -19,6 +19,7 @@ __CC_gray             = "#777777"
 __CC_light_gray       = "#AAAAAA"
 __CC_blue_tech        = '#0065ff'
 __CC_green            = "#4bd700"
+__CC_red              = "#d70000"
 
 # Palette di blu (dal più scuro al più chiaro)
 __CC_blue_900   = "#0A192F"   # quasi nero con sfumatura blu
@@ -108,6 +109,7 @@ CC_frm_report_bg = __CC_blue_800
  
 # progressbar
 CC_progressbar = __CC_green
+CC_red = __CC_red
 
 # bscan preview
 CC_lbl_bscan_label_bg = __CC_background

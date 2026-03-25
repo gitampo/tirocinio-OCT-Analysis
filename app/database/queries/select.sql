@@ -10,6 +10,10 @@ ORDER BY creato_il DESC;
 SELECT * FROM patients 
 WHERE id == ?;
 
+@queryname:select_patient_by_name
+SELECT * FROM patients 
+WHERE nome == ? AND cognome == ?;
+
 @queryname:select_doctor_by_id
 SELECT * FROM doctors
 WHERE id == ?;

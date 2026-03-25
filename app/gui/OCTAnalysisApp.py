@@ -8,6 +8,7 @@ from gui.ReportFrame import *
 from configs.colors import *
 from configs.fonts import *
 from database import db_manager
+from gui.ValidatedReportFrame import ValidatedReportFrame
 
 class OCTAnalysisApp(tk.Tk):
     def __init__(self):
@@ -111,8 +112,8 @@ class OCTAnalysisApp(tk.Tk):
         self.rowconfigure(0, weight=0)
         self.rowconfigure(1, weight=1)
         
-        # ottiene i dati del paziente che sta loggando
-        patient_dict = db_manager.get_patient(1013386)
+        # ottiene i dati del paziente che sta loggando (dal LoginFrame)
+        patient_dict = self.frm_login.patient_data
         
         # barra superiore
         self.top_bar = TopBar(self, f'{patient_dict["nome"]} {patient_dict["cognome"]}')       
@@ -165,7 +166,8 @@ class OCTAnalysisApp(tk.Tk):
         if report_dict is None or (not report_dict): return
         
         # istanzia il frame del report selezionato e lo porta in primo piano
-        frm_report = ReportFrame(self, report_dict['id'])
+        frm_report = ValidatedReportFrame(self, report_dict['id'], self.who_is_logged)
+        
         frm_report.grid(row=1, column=0, sticky='nswe')
         frm_report.tkraise()
         

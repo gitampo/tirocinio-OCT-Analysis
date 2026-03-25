@@ -22,7 +22,10 @@ CREATE TABLE IF NOT EXISTS bscans (
     report INTEGER REFERENCES reports(id),
     immagine VARCHAR(255) NOT NULL,
     malattia_predetta VARCHAR(100) CHECK(malattia_predetta IN ('AMD','DME','ERM','NO','RAO','RVO','VID')),
-    probabilità_predizione REAL CHECK(probabilità_predizione BETWEEN 0 AND 100)
+    probabilità_predizione REAL CHECK(probabilità_predizione BETWEEN 0 AND 100),
+    validazione_medico VARCHAR(20) CHECK(validazione_medico IN ('Approvato','Corretto','Rifiutato')) DEFAULT NULL,
+    malattia_validata VARCHAR(100) CHECK(malattia_validata IN ('AMD','DME','ERM','NO','RAO','RVO','VID')) DEFAULT NULL,
+    validato_il TIMESTAMP DEFAULT NULL
 );
 
 @queryname:create_doctors

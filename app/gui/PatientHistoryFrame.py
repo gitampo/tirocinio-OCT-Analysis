@@ -116,11 +116,11 @@ class PatientHistoryFrame(TableFrame):
         
         # valori delle info del paziente
         lbl_values = [
-          tk.Label(frm_info, pady=2, fg=CC_frm_info_text, bg=CC_frm_info, anchor='w',text=f'{patient_dict["id"]}')
-         ,tk.Label(frm_info, pady=2, fg=CC_frm_info_text, bg=CC_frm_info, anchor='w',text=f'{patient_dict["nome"]}')
-         ,tk.Label(frm_info, pady=2, fg=CC_frm_info_text, bg=CC_frm_info, anchor='w',text=f'{patient_dict["cognome"]}')
-         ,tk.Label(frm_info, pady=2, fg=CC_frm_info_text, bg=CC_frm_info, anchor='w',text=f'{patient_dict["sesso"]}')
-         ,tk.Label(frm_info, pady=2, fg=CC_frm_info_text, bg=CC_frm_info, anchor='w',text=f'{patient_dict["età"]}')
+          tk.Label(frm_info, pady=2, fg=CC_frm_info_text, bg=CC_frm_info, anchor='w',text=f'{patient_dict["id"]}'),
+          tk.Label(frm_info, pady=2, fg=CC_frm_info_text, bg=CC_frm_info, anchor='w',text=f'{patient_dict["nome"]}'),
+          tk.Label(frm_info, pady=2, fg=CC_frm_info_text, bg=CC_frm_info, anchor='w',text=f'{patient_dict["cognome"]}'),
+          tk.Label(frm_info, pady=2, fg=CC_frm_info_text, bg=CC_frm_info, anchor='w',text=f'{patient_dict["sesso"]}'),
+          tk.Label(frm_info, pady=2, fg=CC_frm_info_text, bg=CC_frm_info, anchor='w',text=f'{patient_dict.get("età", "N/A")}')
         ] 
         
         # posizionamento di etichette e valori

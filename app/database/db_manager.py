@@ -73,7 +73,17 @@ def get_patient(cursor, patient_id):
     # ottiene un dizionario con i dati del paziente
     patient_dict = res.fetchone()
     
-    return patient_dict
+    return dict(patient_dict) if patient_dict else None
+
+@needs_connection(sqlite3.Row)
+def get_patient_by_name(cursor, nome, cognome):
+    # dati del paziente cercato per nome e cognome
+    res = cursor.execute(queries['select']['select_patient_by_name'], [nome, cognome])
+    
+    # ottiene un dizionario con i dati del paziente
+    patient_dict = res.fetchone()
+    
+    return dict(patient_dict) if patient_dict else None
 
 @needs_connection(sqlite3.Row)
 def get_doctor(cursor, doctor_id):
@@ -83,7 +93,7 @@ def get_doctor(cursor, doctor_id):
     # ottiene un dizionario con i dati del paziente
     doctor_dict = res.fetchone()
     
-    return doctor_dict
+    return dict(doctor_dict) if doctor_dict else None
 
 @needs_connection()
 def add_report(cursor, report_dict, bscan_list):
@@ -114,4 +124,9 @@ def get_bscans_of_report(cursor, report_id):
 def set_prediction_for_bscan(cursor, bscan_id, malattia, probabilita):
     # aggiorna la previsione per il B-scan specificato
     cursor.execute(queries['update']['update_bscan_prediction'], [malattia, probabilita, bscan_id])
+    cursor.connection.commit()
+@needs_connection()
+def save_validation(cursor, bscan_id, validazione_medico, malattia_validata):
+    # salva la validazione del medico per il B-scan specificato
+    cursor.execute(queries['update']['update_bscan_validation'], [validazione_medico, malattia_validata, bscan_id])
     cursor.connection.commit()

@@ -22,8 +22,12 @@ class BscanDialog(tk.Toplevel):
         # funzione di callback per la chiusura del dialog
         self.destroy_callback = destroy_callback
 
+        # usa l'immagine originale se esiste, altrimenti usa il placeholder
+        from configs.paths import PT_images_dir
+        display_image_path = image_path if Path(image_path).exists() else Path(PT_images_dir) / 'placeholder.jpg'
+        
         # aggiunge l'immagine del dialog
-        bscan_image = ImageCanvas(self, image_path, bg=CC_dlg_bscan_bg)
+        bscan_image = ImageCanvas(self, display_image_path, bg=CC_dlg_bscan_bg)
         bscan_image.pack(fill="both", expand=True)
 
         # chiusura del dialog

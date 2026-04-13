@@ -18,14 +18,15 @@ CREATE TABLE IF NOT EXISTS reports (
 
 @queryname:create_bscans
 CREATE TABLE IF NOT EXISTS bscans (
-    id INTEGER PRIMARY KEY,
-    report INTEGER REFERENCES reports(id),
-    immagine VARCHAR(255) NOT NULL,
-    malattia_predetta VARCHAR(100) CHECK(malattia_predetta IN ('AMD','DME','ERM','NO','RAO','RVO','VID')),
-    probabilità_predizione REAL CHECK(probabilità_predizione BETWEEN 0 AND 100),
-    validazione_medico VARCHAR(20) CHECK(validazione_medico IN ('Approvato','Corretto','Rifiutato')) DEFAULT NULL,
-    malattia_validata VARCHAR(100) CHECK(malattia_validata IN ('AMD','DME','ERM','NO','RAO','RVO','VID')) DEFAULT NULL,
-    validato_il TIMESTAMP DEFAULT NULL
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    report INTEGER NOT NULL,         
+    immagine TEXT NOT NULL,
+    malattia_predetta TEXT,
+    probabilità_predizione REAL,
+    validazione_medico TEXT,         
+    malattia_validata TEXT,
+    validato_il TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (report) REFERENCES reports(id) ON DELETE CASCADE
 );
 
 @queryname:create_doctors

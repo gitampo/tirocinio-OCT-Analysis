@@ -32,6 +32,7 @@ class ReportFrame(ScrollableFrame):
         # liste di input e label (da usare per l'inferenza)
         self.inputs = []
         self.lbl_list = []
+        self.preview_refs = {}  # mappa bscan_id al suo preview frame
 
         # proprietà del canvas
         self.report_id = report_id
@@ -42,6 +43,9 @@ class ReportFrame(ScrollableFrame):
         self.canvas_container.bind("<Configure>", self.update_grid_layout)
 
     def setUpBscanPreview(self, parent, bscan):
+            # immagine bscan (ora sappiamo che esiste)
+            bscan_image_path = Path(PT_images_dir)/bscan['immagine']
+            
             # container per la bscan
             bscan_container = tk.Frame(
                 parent, 
@@ -62,13 +66,9 @@ class ReportFrame(ScrollableFrame):
             # separatore
             tk.Frame(bscan_container, height=3, bg=CC_bscan_separator).pack(fill="x")
 
-            # immagine bscan
-            bscan_image_path = Path(PT_images_dir)/bscan['immagine']
-            # usa l'immagine originale se esiste, altrimenti usa il placeholder
-            display_image_path = bscan_image_path if bscan_image_path.exists() else Path(PT_images_dir) / 'placeholder.jpg'
             bscan_preview = ImageCanvas(
                 bscan_container,
-                display_image_path,
+                bscan_image_path,
                 cursor='hand2',
                 alt='Immagine bscan non trovata...')
             bscan_preview.pack(fill="both", expand=True)
@@ -85,15 +85,15 @@ class ReportFrame(ScrollableFrame):
             lbl_inference.pack(fill="x")
 
             # carica le previsioni se presenti
-            if bscan['malattia_predetta'] and bscan['probabilità_predizione']:
+            prob = bscan.get('probabilità_predizione') or bscan.get('probabilit�\xa0_predizione')
+            if bscan['malattia_predetta'] is not None and prob is not None:
                 pred = bscan['malattia_predetta']
-                prob = bscan['probabilità_predizione']
                 text = f"{pred} con {prob:.2f}% di probabilità"
                 
                 # aggiungi informazioni di validazione se presenti
-                if bscan.get('validazione_medico') and bscan.get('malattia_validata'):
+                if bscan.get('validazione_medico'):
                     validazione = bscan['validazione_medico']
-                    validata = bscan['malattia_validata']
+                    validata = bscan.get('malattia_validata')
                     if validazione == 'Approvato':
                         text += f"\n✓ Approvato dal medico"
                     elif validazione == 'Corretto':
@@ -104,10 +104,9 @@ class ReportFrame(ScrollableFrame):
                 lbl_inference.config(text=text)
             # altrimenti aggiungi all'elenco di input da usare per l'inferenza
             else:
-                # usa l'immagine originale se esiste, altrimenti usa il placeholder
-                image_path_for_inference = bscan_image_path if Path(bscan_image_path).exists() else Path(PT_images_dir) / 'placeholder.jpg'
-                self.inputs += [Image.open(image_path_for_inference)]
+                self.inputs += [Image.open(bscan_image_path)]
                 self.lbl_list += [(bscan['id'], lbl_inference)]
+                self.preview_refs[bscan['id']] = (bscan_preview, False)
 
             # associa il click dell'anteprima all'apertura del dialog
             bscan_preview.bind("<Button-1>", self.on_bscan_click)
@@ -116,9 +115,11 @@ class ReportFrame(ScrollableFrame):
         # ottiene le immagini delle bscans relative al report
         bscans = get_bscans_of_report(self.report_id)
 
-        # aggiunge le anteprime delle bscan al frame container
+        # aggiunge le anteprime delle bscan al frame container solo per quelle con immagini esistenti
         for i, bscan in enumerate(bscans):
-            self.setUpBscanPreview(self.frm_container, bscan)
+            bscan_image_path = Path(PT_images_dir)/bscan['immagine']
+            if bscan_image_path.exists():
+                self.setUpBscanPreview(self.frm_container, bscan)
 
         # esegue l'inferenza delle immagini che lo richiedono
         self.infer_diseases()
@@ -130,17 +131,30 @@ class ReportFrame(ScrollableFrame):
         widget_id = event.widget.winfo_id()
         event.widget.master.configure(highlightthickness=1, highlightbackground=CC_dlg_bscan_highlight)
 
-        # nuovo dialog con immagine bscan
-        if widget_id not in self.opened_dialogs.keys():
-            dialog = BscanDialog(self, event.widget.master, image_path, lambda: self.opened_dialogs.pop(widget_id, None))
+        # elimina eventuali dialog orfani
+        if widget_id in self.opened_dialogs:
+            dialog = self.opened_dialogs.get(widget_id)
+            if not dialog.winfo_exists():
+                self.opened_dialogs.pop(widget_id, None)
 
-            # aggiunge il path dell'immagine alla lista delle bscans aperte
-            self.opened_dialogs.update({widget_id: dialog})
+        # nuovo dialog con immagine bscan
+        if widget_id not in self.opened_dialogs:
+            dialog = BscanDialog(self, event.widget.master, image_path, lambda: self.opened_dialogs.pop(widget_id, None))
+            self.opened_dialogs[widget_id] = dialog
         else:
-            dialog = next((v for k,v in self.opened_dialogs.items() if k == widget_id), None)
+            dialog = self.opened_dialogs.get(widget_id)
             if dialog: dialog.lift()
 
         return "break"
+
+    def close_toplevels(self):
+        for dialog in list(self.opened_dialogs.values()):
+            try:
+                if dialog.winfo_exists():
+                    dialog.destroy()
+            except tk.TclError:
+                pass
+        self.opened_dialogs.clear()
 
     def update_grid_layout(self, event=None):
 
@@ -186,6 +200,11 @@ class ReportFrame(ScrollableFrame):
                 # salva la previsione nel database e aggiorna la label corrispondente
                 db_manager.set_prediction_for_bscan(bscan_id, pred, prob)
                 lbl_inference.config(text=f"{pred} con {prob:.2f}% di probabilità")
+                
+                # nasconde il placeholder ora che esiste una predizione
+                preview_ref = self.preview_refs.get(bscan_id)
+                if preview_ref and preview_ref[1]:
+                    preview_ref[0].pack_forget()
 
         # pulisce gli input
         self.inputs.clear()

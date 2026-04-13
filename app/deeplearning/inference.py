@@ -33,7 +33,7 @@ def infer_disease(images, seed=DEFAULT_SEED):
 
     # caricamento del modello e del checkpoint
     model = load_model(model_name)
-    model.load_state_dict(torch.load(checkpoint_path, weights_only=True))
+    model.load_state_dict(torch.load(checkpoint_path, weights_only=True, map_location=torch.device('cpu')))
 
     # impostazione del modello in modalità di valutazione
     model.eval()

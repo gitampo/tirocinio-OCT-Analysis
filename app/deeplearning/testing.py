@@ -84,7 +84,7 @@ def load_for_test(model_name, checkpoint_name, dataset_name, dataset_split):
     # caricamento del checkpoint
     print_info(f"Caricamento del checkpoint '{checkpoint_name}' per il modello '{model_name}'...")
     checkpoint = get_checkpoint_path(model_name, checkpoint_name)
-    model.load_state_dict(torch.load(checkpoint, weights_only=True))
+    model.load_state_dict(torch.load(checkpoint, weights_only=True, map_location=torch.device('cpu')))
 
     # caricamento del dataset
     print_info(f"Caricamento del dataset '{dataset_name}'...")

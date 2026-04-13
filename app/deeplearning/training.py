@@ -102,7 +102,7 @@ def load_for_train(model_name, checkpoint_name, dataset_name, dataset_split, fro
     if (checkpoint_name) and (not from_scratch):
         print_info(f"Caricamento del checkpoint '{checkpoint_name}' per il modello '{model_name}'...")
         checkpoint_path = get_checkpoint_path(model_name, checkpoint_name)
-        model.load_state_dict(torch.load(checkpoint_path, weights_only=True))
+        model.load_state_dict(torch.load(checkpoint_path, weights_only=True, map_location=torch.device('cpu')))
     elif (not checkpoint_name) and (not from_scratch):
         raise ValueError("Nessun checkpoint da caricare e non si sta addestrando da zero.")
     elif from_scratch:

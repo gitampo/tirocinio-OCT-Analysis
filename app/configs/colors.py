@@ -41,6 +41,7 @@ __CC_text        = __CC_white
 
 # app
 CC_appname_fg = __CC_blue_tech
+CC_blue_tech = __CC_blue_tech
 CC_background = __CC_background
 
 # login
@@ -123,3 +124,9 @@ CC_dlg_bscan_highlight = __CC_white
 # caricamento
 CC_loading_bg = __CC_blue_800
 CC_loading_fg = __CC_text
+
+# exported generic colors for general use
+CC_green = __CC_green
+CC_black = __CC_black
+CC_white = __CC_white
+CC_light_cobalt = __CC_light_cobalt

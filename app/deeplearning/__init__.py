@@ -1,7 +1,8 @@
 from .model_factory import AVAILABLE_MODELS
 
 # configurazione delle variabili del package
-CHECKPOINT_FOR_DISEASE_INFERENCE = 'vitmae-light/base'
+CHECKPOINT_FOR_DISEASE_INFERENCE = 'vit/base'
+CHECKPOINT_FOR_DISEASE_INFERENCE = 'vitmae-heavy/base'
 
 DEFAULT_DATASET = 'OCTDL'
 DEFAULT_SPLIT = (0.8, 0.1, 0.1)  # train, eval, test split

@@ -39,7 +39,7 @@ def load_training_args():
         eval_strategy="epoch",
         logging_strategy="epoch",
         logging_steps=1,
-        num_train_epochs=20,
+        num_train_epochs=5,
         load_best_model_at_end=False,
         metric_for_best_model="accuracy"
     )

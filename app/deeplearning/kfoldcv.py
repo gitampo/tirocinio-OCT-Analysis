@@ -1,5 +1,6 @@
 import json
 import numpy as np
+import torch
 from torch.utils.data import Dataset, Subset
 from transformers import Trainer, TrainingArguments
 from pathlib import Path
@@ -18,8 +19,8 @@ from .testing import (
     compute_metrics_for_test, 
     print_results,
     metrics_names,
-    metrics_formats
 )
+from . import TRAIN_BATCH_SIZE, TEST_BATCH_SIZE
 from .model_factory import (
     load_model, 
     get_preprocessor, 
@@ -102,41 +103,173 @@ class KFoldModelWrapper():
 
     def fit(self, train_dataset):
 
-        # caricamento del modello e degli argomenti di training
+        # caricamento del modello
         self.model = load_model(self.model_name)
-        training_args = load_training_args()
-        training_args.do_eval = False
-        training_args.eval_strategy = "no"
 
-        # creazione del trainer
-        trainer = Trainer(
-            model=self.model,
-            args=training_args,
-            train_dataset=train_dataset
-        )
+        # verifica se è un modello transformers o CNN
+        is_transformers_model = self.model_name in ['vit', 'vitmae-light', 'vitmae-heavy']
 
-        # training vero e proprio
-        print_info("Inizio del training...")
-        trainer.train()
+        if is_transformers_model:
+            # Training con Transformers Trainer
+            training_args = load_training_args()
+            training_args.do_eval = False
+            training_args.eval_strategy = "no"
+
+            trainer = Trainer(
+                model=self.model,
+                args=training_args,
+                train_dataset=train_dataset
+            )
+
+            print_info("Inizio del training con Transformers...")
+            trainer.train()
+        else:
+            # Training manuale per modelli CNN
+            self._train_cnn_model(train_dataset)
+
+    def _train_cnn_model(self, train_dataset):
+        """Training loop manuale per modelli CNN"""
+        import torch.optim as optim
+        from torch.utils.data import DataLoader
+
+        print_info("Inizio del training manuale per modello CNN...")
+
+        # Parametri di training
+        num_epochs = 5
+        batch_size = TRAIN_BATCH_SIZE
+        learning_rate = 1e-4
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+        # Sposta il modello su device
+        self.model.to(device)
+
+        # Calcola pesi di classe per gestire il dataset sbilanciato
+        train_labels = np.array(train_dataset.dataset.labels)[train_dataset.indices]
+        class_counts = np.bincount(train_labels, minlength=len(OCTDL.labels))
+        class_weights = 1.0 / (class_counts + 1e-12)
+        class_weights = torch.tensor(class_weights, dtype=torch.float32, device=device)
+
+        # Ottimizzatore e loss function bilanciata
+        optimizer = optim.Adam(self.model.parameters(), lr=learning_rate)
+        criterion = torch.nn.CrossEntropyLoss(weight=class_weights)
+
+        # DataLoader
+        train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+
+        # Training loop
+        self.model.train()
+        for epoch in range(num_epochs):
+            epoch_loss = 0.0
+            correct = 0
+            total = 0
+
+            for batch in train_loader:
+                pixel_values = batch['pixel_values'].to(device)
+                labels = batch['labels'].to(device)
+
+                # Forward pass
+                optimizer.zero_grad()
+                outputs = self.model(pixel_values)
+                
+                # Gestisci output del modello (dict per transformers, tensor per CNN)
+                if isinstance(outputs, dict):
+                    logits = outputs["logits"]
+                    loss = outputs.get("loss")
+                    if loss is None:
+                        loss = criterion(logits, labels)
+                else:
+                    logits = outputs
+                    loss = criterion(logits, labels)
+
+                # Backward pass
+                loss.backward()
+                optimizer.step()
+
+                # Statistiche
+                epoch_loss += loss.item()
+                _, predicted = torch.max(logits.data, 1)
+                total += labels.size(0)
+                correct += (predicted == labels).sum().item()
+
+            # Log per epoca
+            avg_loss = epoch_loss / len(train_loader)
+            accuracy = 100 * correct / total
+            print_info(f"Epoch {epoch+1}/{num_epochs} - Loss: {avg_loss:.4f}, Accuracy: {accuracy:.2f}%")
 
     def score(self, val_dataset):
-        import tempfile
+        # verifica se è un modello transformers o CNN
+        is_transformers_model = self.model_name in ['vit', 'vitmae-light', 'vitmae-heavy']
 
-        # creazione del trainer
-        trainer = Trainer(
-            model=self.model,
-            args=TrainingArguments(
-                output_dir=tempfile.mkdtemp(),
-                per_device_eval_batch_size=TEST_BATCH_SIZE,
-                do_train=False,
-                do_eval=True,
-            ),
-            compute_metrics=compute_metrics_for_test,
-        )
+        if is_transformers_model:
+            # Valutazione con Transformers Trainer
+            import tempfile
+            trainer = Trainer(
+                model=self.model,
+                args=TrainingArguments(
+                    output_dir=tempfile.mkdtemp(),
+                    per_device_eval_batch_size=TEST_BATCH_SIZE,
+                    do_train=False,
+                    do_eval=True,
+                ),
+                compute_metrics=compute_metrics_for_test,
+            )
 
-        # valutazione sul validation set
-        print_info("Inizio della valutazione...")
-        output = trainer.evaluate(val_dataset)
+            print_info("Inizio della valutazione con Transformers...")
+            output = trainer.evaluate(val_dataset)
+            return output
+        else:
+            # Valutazione manuale per modelli CNN
+            return self._evaluate_cnn_model(val_dataset)
+
+    def _evaluate_cnn_model(self, val_dataset):
+        """Valutazione manuale per modelli CNN"""
+        import torch
+        from torch.utils.data import DataLoader
+
+        print_info("Inizio della valutazione manuale per modello CNN...")
+
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.model.to(device)
+        self.model.eval()
+
+        # DataLoader per validation
+        val_loader = DataLoader(val_dataset, batch_size=TEST_BATCH_SIZE, shuffle=False)
+
+        all_predictions = []
+        all_labels = []
+
+        all_logits = []
+        all_labels = []
+
+        with torch.no_grad():
+            for batch in val_loader:
+                pixel_values = batch['pixel_values'].to(device)
+                labels = batch['labels'].to(device)
+
+                outputs = self.model(pixel_values)
+
+                # Gestisci output del modello
+                if isinstance(outputs, dict):
+                    logits = outputs["logits"]
+                else:
+                    logits = outputs
+
+                all_logits.append(logits.cpu())
+                all_labels.extend(labels.cpu().numpy())
+
+        logits = torch.cat(all_logits, dim=0).numpy()
+        labels = np.array(all_labels)
+
+        # Calcola le metriche usando la stessa funzione del testing
+        metrics = compute_metrics_for_test((logits, labels))
+
+        # Format the output to match Transformers format
+        output = {}
+        for key, value in metrics.items():
+            if key == 'confusion_matrix':
+                output['eval_confusion_matrix'] = value
+            else:
+                output[f'eval_{key}'] = value
 
         return output
 

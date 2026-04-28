@@ -1,3 +1,4 @@
+import numpy as np
 from sklearn.metrics import (
     accuracy_score, 
     balanced_accuracy_score,
@@ -70,6 +71,8 @@ def compute_metrics_for_test(eval_pred):
 
     # calcolo delle predizioni
     logits, labels = eval_pred
+    logits = np.asarray(logits)
+    labels = np.asarray(labels)
     preds = logits.argmax(axis=-1)
 
     # calcolo delle metriche

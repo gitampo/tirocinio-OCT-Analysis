@@ -1,33 +1,51 @@
 from .models import MLP
 from .models import ViTMAE
 from .models import ViT
+from .models import CNN
 
-AVAILABLE_MODELS = ['vitmae-light', 'vitmae-heavy', 'vit', 'mlp']
+AVAILABLE_MODELS = ['vitmae-light', 'vitmae-heavy', 'vit', 'mlp', 'resnet18', 'resnet50', 'densenet121', 'efficientnet_b0']
 
 # configurazione dei dizionari per il training di vitmae
 _model_classes    = {
     "vitmae-light": ViTMAE.ViTMAEForImageClassification_light,
     "vitmae-heavy": ViTMAE.ViTMAEForImageClassification_heavy,
     "vit": ViT.ViTForImageClassification,
-    "mlp": MLP.MLPImageClassification
+    "mlp": MLP.MLPImageClassification,
+    "resnet18": lambda: CNN.CNNForImageClassification(variant='resnet18'),
+    "resnet50": lambda: CNN.CNNForImageClassification(variant='resnet50'),
+    "densenet121": lambda: CNN.CNNForImageClassification(variant='densenet121'),
+    "efficientnet_b0": lambda: CNN.CNNForImageClassification(variant='efficientnet_b0') 
+    
 }
 _train_preprocessor = {
     "vitmae-light": lambda examples: ViTMAE.preprocess_batch(ViTMAE.augment(examples)),
     "vitmae-heavy": lambda examples: ViTMAE.preprocess_batch(ViTMAE.augment(examples)),
     "vit": lambda examples: ViT.preprocess_batch(ViT.augment(examples)),
-    "mlp": lambda examples: MLP.preprocess_batch(MLP.augment(examples))
+    "mlp": lambda examples: MLP.preprocess_batch(MLP.augment(examples)),
+    "resnet18": lambda examples: CNN.preprocess_batch(CNN.augment(examples)),
+    "resnet50": lambda examples: CNN.preprocess_batch(CNN.augment(examples)),
+    "densenet121": lambda examples: CNN.preprocess_batch(CNN.augment(examples)),
+    "efficientnet_b0": lambda examples: CNN.preprocess_batch(CNN.augment(examples)),
 }
 _preprocessor  = {
     "vitmae-light": ViTMAE.preprocess_batch,
     "vitmae-heavy": ViTMAE.preprocess_batch,
     "vit": ViT.preprocess_batch,
-    "mlp": MLP.preprocess_batch
+    "mlp": MLP.preprocess_batch,
+    "resnet18": CNN.preprocess_batch,
+    "resnet50": CNN.preprocess_batch,
+    "densenet121": CNN.preprocess_batch,
+    "efficientnet_b0": CNN.preprocess_batch,
 }
 _augmenter    = {
     "vitmae-light": ViTMAE.augment,
     "vitmae-heavy": ViTMAE.augment,
     "vit": ViT.augment,
-    "mlp": MLP.augment
+    "mlp": MLP.augment,
+    "resnet18": CNN.augment,
+    "resnet50": CNN.augment,
+    "densenet121": CNN.augment,
+    "efficientnet_b0": CNN.augment,
 }
 
 # lista dei mapping
@@ -80,3 +98,4 @@ def get_preprocessor(model_name):
 @check_model_available
 def get_augmenter(model_name):
     return _augmenter[model_name]
+

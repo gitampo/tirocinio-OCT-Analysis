@@ -10,6 +10,8 @@ def available_checkpoints():
     
     # ottiene le cartelle relative ai modelli 
     model_directories = [file for file in Path(PT_checkpoints_dir).iterdir() if file.is_dir()]
+    if not Path(PT_checkpoints_dir).exists():
+        return []
 
     # per ogni modello, ottiene la lista di checkpoints e la salva nel formato "model/checkpoint"
     for model_dir in model_directories:
@@ -22,4 +24,6 @@ def available_checkpoints():
 def available_datasets():
     # ottiene le cartelle relative ai dataset
     datasets = [file.stem for file in Path(PT_datasets_dir).iterdir() if file.is_dir()]
+    if not Path(PT_datasets_dir).exists():
+        return []
     return datasets

@@ -7,17 +7,21 @@ def available_models():
 
 def available_checkpoints():
     checkpoints = []
-    
-    # ottiene le cartelle relative ai modelli 
-    model_directories = [file for file in Path(PT_checkpoints_dir).iterdir() if file.is_dir()]
+
     if not Path(PT_checkpoints_dir).exists():
         return []
 
-    # per ogni modello, ottiene la lista di checkpoints e la salva nel formato "model/checkpoint"
+    model_directories = [
+        file for file in Path(PT_checkpoints_dir).iterdir()
+        if file.is_dir()
+    ]
+
     for model_dir in model_directories:
-        checkpoints += [model_dir.stem+'/'+checkpoint_file.stem 
-                        for checkpoint_file in model_dir.iterdir() 
-                        if checkpoint_file.suffix in ('.pth','.pt')]
+        checkpoints += [
+            model_dir.stem + '/' + checkpoint_file.stem
+            for checkpoint_file in model_dir.iterdir()
+            if checkpoint_file.suffix in ('.pth', '.pt')
+        ]
 
     return checkpoints
 

@@ -15,10 +15,11 @@ def label2id(label):
 
 def get_patient_id(image_name):
 
-    # 1) dato il path completo al dataset OCTDL, 2) ottiene il dataframe con filename e patient-id
-    # e 3) ottiene il patient-id corrispondente all'immagine
-    path_to_dataset = Path(PT_datasets_dir) / DATASET_NAME
-    df = pd.read_csv(path_to_dataset / LABELS_CSV)[["file_name", "patient_id"]]
-    patient_id = int(df[df["file_name"] == image_name]["patient_id"].values[0])
+    dataset_root = Path(PT_datasets_dir)        # .../OCTDL
+    df = pd.read_csv(dataset_root / LABELS_CSV)[["file_name", "patient_id"]]
+
+    patient_id = int(
+        df[df["file_name"] == image_name]["patient_id"].values[0]
+    )
 
     return patient_id

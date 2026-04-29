@@ -135,7 +135,7 @@ class KFoldModelWrapper():
         print_info("Inizio del training manuale per modello CNN...")
 
         # Parametri di training
-        num_epochs = 5
+        num_epochs = 20
         batch_size = TRAIN_BATCH_SIZE
         learning_rate = 1e-4
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")

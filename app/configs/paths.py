@@ -13,6 +13,6 @@ PT_log_dir = 'logs/'
 # DATASET (KAGGLE + LOCAL)
 # -------------------------
 if os.path.exists("/kaggle/input"):
-    PT_datasets_dir = "/kaggle/input/datasets/orvile/octdl-optical-coherence-tomography-dataset" 
+    PT_datasets_dir = "/kaggle/input/datasets/orvile/OCTDL" 
 else:
     PT_datasets_dir = 'deeplearning/data/datasets/'

@@ -37,7 +37,7 @@ class KFoldDataset(Dataset):
         self.augmentation_enabled = True # per abilitare/disabilitare l'augmentation
 
         # path completo sino al dataset
-        path_to_dataset = Path(PT_datasets_dir) / OCTDL.DATASET_NAME
+        path_to_dataset = Path(PT_datasets_dir.strip()) / OCTDL.DATASET_NAME.strip()
 
         # lista di tutti i path delle immagini
         self.image_paths = (

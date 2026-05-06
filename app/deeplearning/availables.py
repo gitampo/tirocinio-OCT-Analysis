@@ -26,8 +26,4 @@ def available_checkpoints():
     return checkpoints
 
 def available_datasets():
-    # ottiene le cartelle relative ai dataset
-    datasets = [file.stem for file in Path(PT_datasets_dir).iterdir() if file.is_dir()]
-    if not Path(PT_datasets_dir).exists():
-        return []
-    return datasets
+    return ["OCT2017"]

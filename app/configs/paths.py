@@ -12,13 +12,22 @@ PT_log_dir = 'logs/'
 # -------------------------
 # DATASET (KAGGLE + LOCAL)
 # -------------------------
-if os.path.exists("/kaggle/input/kermany2018/OCT2017"):
-    PT_datasets_dir = "/kaggle/input/kermany2018"
-elif os.path.exists("/kaggle/input/kermany2018"):
-    PT_datasets_dir = "/kaggle/input/kermany2018"
-elif os.path.exists("/kaggle/input/datasets/paultimothymooney/kermany2018/OCT2017"):
-    PT_datasets_dir = "/kaggle/input/datasets/paultimothymooney/kermany2018"
-elif os.path.exists("/kaggle/input/datasets/paultimothymooney/kermany2018"):
-    PT_datasets_dir = "/kaggle/input/datasets/paultimothymooney/kermany2018"
+if os.path.exists("/kaggle/input"):
+    # Debug: lista cosa è disponibile in /kaggle/input
+    import sys
+    available_dirs = os.listdir("/kaggle/input")
+    print(f"[DEBUG] Contenuto di /kaggle/input: {available_dirs}", file=sys.stderr)
+    
+    # Cerca il dataset in varie posizioni possibili
+    if os.path.exists("/kaggle/input/kermany2018"):
+        PT_datasets_dir = "/kaggle/input/kermany2018"
+        print(f"[DEBUG] Dataset trovato in: /kaggle/input/kermany2018", file=sys.stderr)
+    elif os.path.exists("/kaggle/input/datasets/paultimothymooney/kermany2018"):
+        PT_datasets_dir = "/kaggle/input/datasets/paultimothymooney/kermany2018"
+        print(f"[DEBUG] Dataset trovato in: /kaggle/input/datasets/paultimothymooney/kermany2018", file=sys.stderr)
+    else:
+        # Se niente è trovato, fallback a local
+        PT_datasets_dir = 'deeplearning/data/datasets/'
+        print(f"[DEBUG] Dataset non trovato in Kaggle, usando local: {PT_datasets_dir}", file=sys.stderr)
 else:
     PT_datasets_dir = 'deeplearning/data/datasets/'

@@ -31,7 +31,7 @@ from . import DEFAULT_KFOLDS, DEFAULT_SEED, TEST_BATCH_SIZE
 class KFoldDataset(Dataset):
     def __init__(self, model_name):
         # path completo sino al dataset
-        path_to_dataset = Path(PT_datasets_dir.strip()) / OCTDL.DATASET_NAME.strip()
+        path_to_dataset = Path(PT_datasets_dir.strip()) / OCTDL.DATASET_NAME
 
         # otteniene il preprocessore delle immagini
         self.preprocessor = get_preprocessor(model_name)

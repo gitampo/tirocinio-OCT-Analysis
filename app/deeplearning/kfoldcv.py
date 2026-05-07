@@ -39,6 +39,21 @@ class KFoldDataset(Dataset):
         self.augmentation_enabled = True # per abilitare/disabilitare l'augmentation
 
         print(f"[DEBUG] Percorso dataset: {path_to_dataset}")
+        print(f"[DEBUG] PT_datasets_dir: '{PT_datasets_dir}'")
+        print(f"[DEBUG] DATASET_NAME: '{OCTDL.DATASET_NAME}'")
+        
+        parent_path = Path(PT_datasets_dir.strip())
+        print(f"[DEBUG] Esiste parent: {parent_path.exists()}")
+        
+        if parent_path.exists():
+            try:
+                contents = list(parent_path.iterdir())[:10]
+                print(f"[DEBUG] Contenuto di {parent_path}:")
+                for item in contents:
+                    print(f"  - {item.name} (dir={item.is_dir()})")
+            except Exception as e:
+                print(f"[DEBUG] Errore nel listare: {e}")
+        
         print(f"[DEBUG] Esiste: {path_to_dataset.exists()}")
         
         if path_to_dataset.exists():

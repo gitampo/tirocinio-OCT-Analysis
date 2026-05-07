@@ -38,7 +38,11 @@ class KFoldDataset(Dataset):
         self.augmenter = get_augmenter(model_name)
         self.augmentation_enabled = True # per abilitare/disabilitare l'augmentation
 
-        print(path_to_dataset)
+        print(f"[DEBUG] Percorso dataset: {path_to_dataset}")
+        print(f"[DEBUG] Esiste: {path_to_dataset.exists()}")
+        
+        if path_to_dataset.exists():
+            print(f"[DEBUG] Contenuto: {list(path_to_dataset.iterdir())[:5]}")
 
         # lista di tutti i path delle immagini
         self.image_paths = (
@@ -47,9 +51,11 @@ class KFoldDataset(Dataset):
             list(path_to_dataset.rglob("*.jpeg"))
         )
 
+        print(f"[DEBUG] Immagini trovate: {len(self.image_paths)}")
+
         # verifica che siano state trovate immagini
         if not self.image_paths:
-            raise ValueError(f"Nessuna immagine trovata in {path_to_dataset}")
+            raise ValueError(f"Nessuna immagine trovata in {path_to_dataset}\nVerifica che il dataset sia presente e contenga file .png, .jpg o .jpeg")
 
         # elementi del dataset (etichette e pazienti corrispondenti alle immagini)
         self.labels = [OCTDL.label2id(self.image_paths[idx].parent.name) for idx in range(len(self.image_paths))]

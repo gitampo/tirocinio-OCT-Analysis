@@ -128,6 +128,23 @@ class KFoldModelWrapper():
         # caricamento del modello
         self.model = load_model(self.model_name)
 
+        # Adatta il modello CNN al numero di labels corretto
+        is_cnn_model = self.model_name in ['resnet18', 'resnet50', 'densenet121', 'efficientnet_b0']
+        if is_cnn_model:
+            num_labels = len(OCTDL.labels)
+            # Sostituisci l'ultimo layer con il numero di labels corretto
+            if hasattr(self.model, 'classifier'):
+                old_classifier = self.model.classifier
+                # Assumendo che l'ultimo layer sia un Linear layer
+                layers = []
+                for layer in old_classifier:
+                    if isinstance(layer, torch.nn.Linear) and layer.out_features == 7:
+                        # Sostituisci il layer finale
+                        layers.append(torch.nn.Linear(layer.in_features, num_labels))
+                    else:
+                        layers.append(layer)
+                self.model.classifier = torch.nn.Sequential(*layers)
+
         # verifica se è un modello transformers o CNN
         is_transformers_model = self.model_name in ['vit', 'vitmae-light', 'vitmae-heavy']
 

@@ -1,6 +1,6 @@
 labels = ['CNV', 'DME', 'DRUSEN', 'NORMAL']
 
-DATASET_NAME = 'OCT2017 '
+DATASET_NAME = 'oct2017'
 
 
 def id2label(id):

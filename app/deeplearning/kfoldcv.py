@@ -42,9 +42,6 @@ class KFoldDataset(Dataset):
 
         # lista di tutti i path delle immagini
         self.image_paths = (
-
-        # lista di tutti i path delle immagini
-        self.image_paths = (
             list(path_to_dataset.rglob("*.png")) +
             list(path_to_dataset.rglob("*.jpg")) +
             list(path_to_dataset.rglob("*.jpeg"))

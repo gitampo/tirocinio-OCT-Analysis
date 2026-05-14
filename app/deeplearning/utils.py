@@ -23,32 +23,12 @@ def check_valid_split(dataset_split):
     if train_sz < 0 or eval_sz < 0 or test_sz < 0:
         raise ValueError(f"Dataset split '{dataset_split}' non valido: gli split devono essere non negativi")
 
-def resolve_dataset_path(dataset_name):
-    root_path = Path(PT_datasets_dir)
-    candidate_paths = [
-        root_path / dataset_name,
-        root_path / dataset_name.lower(),
-    ]
-
-    for candidate in candidate_paths:
-        if candidate.exists():
-            return candidate
-
-    # Special case: OCTDL può essere fornito come directory radice del dataset Kaggle
-    if dataset_name == 'OCTDL':
-        # Se nella root esiste il CSV delle etichette, consideriamo la root come dataset root
-        if (root_path / 'OCTDL_labels.csv').exists():
-            return root_path
-
-        # Se la root contiene le cartelle di classe del dataset OCTDL
-        if root_path.exists() and any(child.is_dir() for child in root_path.iterdir()):
-            return root_path
-
-    raise ValueError(f"Dataset '{dataset_name}' non disponibile")
-
-
 def check_valid_dataset(dataset_name):
-    dataset_path = resolve_dataset_path(dataset_name)
+    dataset_path = Path(PT_datasets_dir) / dataset_name
+
+    # controlla che il dataset esista
+    if not dataset_path.exists():
+        raise ValueError(f"Dataset '{dataset_name}' non disponibile")
 
     # controlla che il dataset-imagefolder contenga solo classi e non split (train/, test/, eval/) o che comunque non contenga file che non siano immagini
     dataset_classes = [file.stem for file in dataset_path.iterdir() if file.is_dir()]
@@ -94,17 +74,8 @@ def load_splitted_dataset_from_name(dataset_name, dataset_split):
     Raggruppa le immagini per patient_id e divide i gruppi di pazienti
     (non le singole immagini) in train/eval/test. Questo garantisce che
     nessun paziente appare in più split.
-    
-    Supporta sia OCTDL che OCT2017.
     """
-    
-    # Importa dinamicamente il modulo di dataset corretto per estrarre patient_id
-    if dataset_name == 'OCTDL':
-        from .datasets.OCTDL import get_patient_id, DATASET_NAME, LABELS_CSV
-    elif dataset_name == 'OCT2017':
-        from .datasets.OCT2017 import get_patient_id
-    else:
-        raise ValueError(f"Dataset '{dataset_name}' non supportato per lo split anti-leakage")
+    from .datasets.OCTDL import get_patient_id
 
     # controlla la validità del dataset e degli split
     check_valid_dataset(dataset_name)
@@ -118,34 +89,17 @@ def load_splitted_dataset_from_name(dataset_name, dataset_split):
     dataset = datasets.load_dataset("imagefolder", data_dir=str(dataset_path))
     dataset = dataset['train']  # estrae il split train
 
-    # Per OCTDL, carica il CSV per una mappatura diretta file_name → patient_id
-    if dataset_name == 'OCTDL':
-        df_labels = pd.read_csv(dataset_path / LABELS_CSV)[["file_name", "patient_id"]]
-        # Crea un dizionario per lookup veloce
-        filename_to_patient = dict(zip(df_labels['file_name'], df_labels['patient_id'].astype(str)))
-        
-        # Estrai patient_id da ogni immagine basandosi sul CSV
-        patient_ids_list = []
-        for idx in range(len(dataset)):
-            # Il CSV è ordinato come il dataset, quindi usa l'indice direttamente
-            if idx < len(df_labels):
-                patient_id = str(df_labels.iloc[idx]['patient_id'])
-            else:
-                patient_id = str(idx)  # Fallback
-            patient_ids_list.append(patient_id)
-    else:
-        # Per OCT2017, estrai from class label (pseudo patient_id)
-        # Usa il nome della classe come patient_id
-        label_names = dataset.features['label'].names
-        patient_ids_list = [label_names[example['label']] for example in dataset]
-    
-    # Aggiungi patient_id al dataset
-    dataset = dataset.add_column('patient_id', patient_ids_list)
+    # estrae i patient_id per ogni immagine
+    def extract_patient_id(example):
+        example['patient_id'] = get_patient_id(example['image'].filename.split('/')[-1])
+        return example
+
+    dataset = dataset.map(extract_patient_id, num_proc=NUM_PROC)
 
     # raggruppa per patient_id
     patient_indices = {}
-    for idx in range(len(dataset)):
-        pid = dataset[idx]['patient_id']
+    for idx, example in enumerate(dataset):
+        pid = example['patient_id']
         if pid not in patient_indices:
             patient_indices[pid] = []
         patient_indices[pid].append(idx)

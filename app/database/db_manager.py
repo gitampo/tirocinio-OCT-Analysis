@@ -1,6 +1,7 @@
 from configs.paths import PT_database
 from . import queries
 import sqlite3
+import traceback
 
 db_connection = None
 
@@ -22,7 +23,7 @@ def needs_connection(row_factory=None):
             # ottiene la connessione al DB
             conn = get_connection()
             if new_thread:
-                conn = sqlite3.connect(PT_database)
+                conn = sqlite3.connect(PT_database, isolation_level=None)
 
             # imposta il row_factory e il cursore
             conn.row_factory = row_factory
@@ -34,7 +35,6 @@ def needs_connection(row_factory=None):
 
             # gestisce la chiusura della connessione
             if new_thread:
-                conn.commit()
                 conn.close()
 
             return result
@@ -97,18 +97,23 @@ def get_doctor(cursor, doctor_id):
 
 @needs_connection()
 def add_report(cursor, report_dict, bscan_list):
-    # dati del report da passare alla query
-    args = [report_dict['paziente'],
-            report_dict['data'],
-            report_dict['descrizione']]
+    try:
+        # dati del report da passare alla query
+        args = [report_dict['paziente'],
+                report_dict['data'],
+                report_dict['descrizione']]
 
-    # aggiunta del report
-    cursor.execute(queries['insert']['insert_report'], args)
-    report_id = cursor.lastrowid
-    
-    # aggiunta dei B-scan relativi al report
-    for bscan in bscan_list:
-        cursor.execute(queries['insert']['insert_bscan'], [report_id, bscan])
+        # aggiunta del report
+        cursor.execute(queries['insert']['insert_report'], args)
+        report_id = cursor.lastrowid
+        
+        # aggiunta dei B-scan relativi al report
+        for bscan in bscan_list:
+            cursor.execute(queries['insert']['insert_bscan'], [report_id, bscan])
+    except Exception as e:
+        print(f"[ERROR] Failed to add report: {str(e)}", file=sys.stderr)
+        traceback.print_exc(file=sys.stderr)
+        raise
 
 @needs_connection(sqlite3.Row)
 def get_bscans_of_report(cursor, report_id):
@@ -124,9 +129,7 @@ def get_bscans_of_report(cursor, report_id):
 def set_prediction_for_bscan(cursor, bscan_id, malattia, probabilita):
     # aggiorna la previsione per il B-scan specificato
     cursor.execute(queries['update']['update_bscan_prediction'], [malattia, probabilita, bscan_id])
-    cursor.connection.commit()
 @needs_connection()
 def save_validation(cursor, bscan_id, validazione_medico, malattia_validata):
     # salva la validazione del medico per il B-scan specificato
     cursor.execute(queries['update']['update_bscan_validation'], [validazione_medico, malattia_validata, bscan_id])
-    cursor.connection.commit()

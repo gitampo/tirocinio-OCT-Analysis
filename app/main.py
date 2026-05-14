@@ -14,7 +14,14 @@ if __name__ == '__main__':
     from database import db_manager
 
     # connessione al database e avvio applicazione
-    with sqlite3.connect(PT_database) as db_connection:
-        db_manager.db_connection = db_connection    # imposta la connessione del db_manager 
-        app = OCTAnalysisApp()                      # istanzia l'applicazione
-        app.mainloop()                              # avvia il mainloop di Tkinter
+    # isolation_level=None abilita l'auto-commit per ogni operazione
+    # NON usiamo 'with' per evitare il rollback automatico al termine
+    db_connection = sqlite3.connect(PT_database, isolation_level=None)
+    db_manager.db_connection = db_connection
+    
+    try:
+        app = OCTAnalysisApp()
+        app.mainloop()
+    finally:
+        # chiude la connessione quando l'app si termina
+        db_connection.close()

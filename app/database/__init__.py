@@ -42,12 +42,20 @@ def _initialize_database():
     connection = sqlite3.connect(PT_database)
     try:
         cursor = connection.cursor()
-        cursor.execute('PRAGMA integrity_check;')
-        integrity = cursor.fetchone()
-        if integrity is None or integrity[0] != 'ok':
-            raise sqlite3.DatabaseError('Database integrity check failed')
-
-        _create_database(connection)
+        
+        # controlla se il database ha già le tabelle (se esiste, non viene ricreato)
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='patients';")
+        table_exists = cursor.fetchone() is not None
+        
+        if not table_exists:
+            # il database è nuovo, vengono create le tabelle
+            _create_database(connection)
+        else:
+            # il database esiste già, viene verificata l'integrità ma non viene ricreato
+            cursor.execute('PRAGMA integrity_check;')
+            integrity = cursor.fetchone()
+            if integrity is None or integrity[0] != 'ok':
+                raise sqlite3.DatabaseError('Database integrity check failed')
     except sqlite3.DatabaseError:
         connection.close()
         if DB_PATH.exists():

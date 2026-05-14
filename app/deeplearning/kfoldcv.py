@@ -38,26 +38,13 @@ class KFoldDataset(Dataset):
         self.augmenter = get_augmenter(model_name)
         self.augmentation_enabled = True # per abilitare/disabilitare l'augmentation
 
-        print(f"[DEBUG] Percorso dataset: {path_to_dataset}")
-        print(f"[DEBUG] PT_datasets_dir: '{PT_datasets_dir}'")
-        print(f"[DEBUG] DATASET_NAME: '{OCTDL.DATASET_NAME}'")
-        
         parent_path = Path(PT_datasets_dir.strip())
-        print(f"[DEBUG] Esiste parent: {parent_path.exists()}")
         
         if parent_path.exists():
             try:
                 contents = list(parent_path.iterdir())[:10]
-                print(f"[DEBUG] Contenuto di {parent_path}:")
-                for item in contents:
-                    print(f"  - {item.name} (dir={item.is_dir()})")
-            except Exception as e:
-                print(f"[DEBUG] Errore nel listare: {e}")
-        
-        print(f"[DEBUG] Esiste: {path_to_dataset.exists()}")
-        
-        if path_to_dataset.exists():
-            print(f"[DEBUG] Contenuto: {list(path_to_dataset.iterdir())[:5]}")
+            except Exception:
+                pass
 
         # lista di tutti i path delle immagini
         self.image_paths = (
@@ -65,8 +52,6 @@ class KFoldDataset(Dataset):
             list(path_to_dataset.rglob("*.jpg")) +
             list(path_to_dataset.rglob("*.jpeg"))
         )
-
-        print(f"[DEBUG] Immagini trovate: {len(self.image_paths)}")
 
         # verifica che siano state trovate immagini
         if not self.image_paths:
@@ -128,7 +113,7 @@ class KFoldModelWrapper():
         # caricamento del modello
         self.model = load_model(self.model_name)
 
-        # Adatta il modello CNN al numero di labels corretto
+        # Adatto il modello CNN al numero di labels corretto
         is_cnn_model = self.model_name in ['resnet18', 'resnet50', 'densenet121', 'efficientnet_b0']
         if is_cnn_model:
             num_labels = len(OCTDL.labels)

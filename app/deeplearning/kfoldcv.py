@@ -13,7 +13,7 @@ from utils.log import log_print
 from configs.paths import PT_datasets_dir, PT_log_dir
 from utils.print import RST, formatted, humanized, print_info, print_separator, print_success_box, print_table
 from .training import load_training_args
-from .datasets import OCT2017 as OCTDL
+from .datasets import OCTDL
 from .training import set_seed, load_training_args
 from .testing import (
     compute_metrics_for_test, 

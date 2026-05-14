@@ -26,4 +26,4 @@ def available_checkpoints():
     return checkpoints
 
 def available_datasets():
-    return ["OCT2017"]
+    return ["OCT2017", "OCTDL"]

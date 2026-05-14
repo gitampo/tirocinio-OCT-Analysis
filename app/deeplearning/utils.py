@@ -30,37 +30,21 @@ def check_valid_dataset(dataset_name):
     if not dataset_path.exists():
         raise ValueError(f"Dataset '{dataset_name}' non disponibile")
 
-    # considera SOLO le directory come classi
-    dataset_classes = [file for file in dataset_path.iterdir() if file.is_dir()]
+    # cerca tutte le immagini ricorsivamente
+    image_extensions = [".png", ".jpg", ".jpeg"]
 
-    # controlla che esista almeno una classe
-    if len(dataset_classes) == 0:
+    images = []
+    for ext in image_extensions:
+        images.extend(dataset_path.rglob(f"*{ext}"))
+
+    # se non trova immagini -> errore
+    if len(images) == 0:
         raise ValueError(
-            f"Dataset '{dataset_name}' non valido: nessuna cartella di classe trovata."
+            f"Dataset '{dataset_name}' non contiene immagini valide"
         )
 
-    # estensioni immagini consentite
-    valid_extensions = {".png", ".jpg", ".jpeg", ".bmp", ".tiff"}
-
-    # controlla che ogni classe contenga solo immagini
-    for dataset_class in dataset_classes:
-
-        for file in dataset_class.iterdir():
-
-            # ignora eventuali sottocartelle nascoste tipo __MACOSX
-            if file.is_dir():
-                raise ValueError(
-                    f"La classe '{dataset_class.stem}' del dataset '{dataset_name}' "
-                    f"contiene sottocartelle non valide: {file.name}"
-                )
-
-            # controlla estensione immagine
-            if file.suffix.lower() not in valid_extensions:
-                raise ValueError(
-                    f"La classe '{dataset_class.stem}' del dataset '{dataset_name}' "
-                    f"contiene file non immagine: {file.name}"
-                )
-
+    print(f"[DEBUG] Trovate {len(images)} immagini nel dataset '{dataset_name}'")
+    
 def get_checkpoint_path(model_name, checkpoint_name):
 
     # guardia per il modello (deve esistere una cartella)

@@ -30,15 +30,20 @@ from . import DEFAULT_KFOLDS, DEFAULT_SEED, TEST_BATCH_SIZE
 
 class KFoldDataset(Dataset):
     def __init__(self, model_name):
-        # path completo sino al dataset
-        path_to_dataset = Path(PT_datasets_dir.strip()) / OCTDL.DATASET_NAME
+        dataset_root = Path(PT_datasets_dir.strip())
+        candidate_dataset_path = dataset_root / OCTDL.DATASET_NAME
 
-        # otteniene il preprocessore delle immagini
+        if candidate_dataset_path.exists():
+            path_to_dataset = candidate_dataset_path
+        else:
+            path_to_dataset = dataset_root
+
+        # ottiene il preprocessore delle immagini
         self.preprocessor = get_preprocessor(model_name)
         self.augmenter = get_augmenter(model_name)
         self.augmentation_enabled = True # per abilitare/disabilitare l'augmentation
 
-        parent_path = Path(PT_datasets_dir.strip())
+        parent_path = dataset_root
         
         if parent_path.exists():
             try:

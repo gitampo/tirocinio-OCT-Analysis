@@ -23,12 +23,23 @@ def check_valid_split(dataset_split):
     if train_sz < 0 or eval_sz < 0 or test_sz < 0:
         raise ValueError(f"Dataset split '{dataset_split}' non valido: gli split devono essere non negativi")
 
-def check_valid_dataset(dataset_name):
-    dataset_path = Path(PT_datasets_dir) / dataset_name
+def resolve_dataset_path(dataset_name):
+    dataset_root = Path(PT_datasets_dir)
+    candidate_paths = [
+        dataset_root / dataset_name,
+        dataset_root / dataset_name.lower(),
+        dataset_root
+    ]
 
-    # controlla che il dataset esista
-    if not dataset_path.exists():
-        raise ValueError(f"Dataset '{dataset_name}' non disponibile")
+    for candidate in candidate_paths:
+        if candidate.exists():
+            return candidate
+
+    raise ValueError(f"Dataset '{dataset_name}' non disponibile")
+
+
+def check_valid_dataset(dataset_name):
+    dataset_path = resolve_dataset_path(dataset_name)
 
     # cerca tutte le immagini ricorsivamente
     image_extensions = [".png", ".jpg", ".jpeg"]
@@ -68,12 +79,13 @@ def load_dataset_from_name(dataset_name):
     check_valid_dataset(dataset_name)
 
     # ottiene il percorso del dataset specificato
-    dataset_path = Path(PT_datasets_dir) / dataset_name
+    dataset_path = resolve_dataset_path(dataset_name)
 
     # carica il dataset utilizzando la libreria datasets di Hugging Face
     dataset = datasets.load_dataset("imagefolder", data_dir=str(dataset_path))
 
     return dataset
+
 
 def load_splitted_dataset_from_name(dataset_name, dataset_split):
     """
@@ -83,38 +95,114 @@ def load_splitted_dataset_from_name(dataset_name, dataset_split):
     (non le singole immagini) in train/eval/test. Questo garantisce che
     nessun paziente appare in più split.
     """
-    from .datasets.OCTDL import get_patient_id
+    if dataset_name == 'OCTDL':
+        from .datasets.OCTDL import get_patient_id, LABELS_CSV
+    elif dataset_name == 'OCT2017':
+        from .datasets.OCT2017 import get_patient_id
+    else:
+        raise ValueError(f"Dataset '{dataset_name}' non supportato per lo split anti-leakage")
 
     # controlla la validità del dataset e degli split
     check_valid_dataset(dataset_name)
     check_valid_split(dataset_split)
 
     # ottiene il percorso del dataset specificato e le dimensioni degli split del dataset
-    dataset_path = Path(PT_datasets_dir) / dataset_name
+    dataset_path = resolve_dataset_path(dataset_name)
     train_sz, eval_sz, test_sz = dataset_split
 
     # carica il dataset utilizzando la libreria datasets di Hugging Face
     dataset = datasets.load_dataset("imagefolder", data_dir=str(dataset_path))
     dataset = dataset['train']  # estrae il split train
 
-    # estrae i patient_id per ogni immagine
-def extract_patient_id(example, idx):
-    # HF imagefolder conserva il path qui
-    file_path = example["image"].get("path", None)
+    # Estrai patient_id per ogni immagine
+    patient_ids_list = []
 
-    if file_path is None:
-        raise ValueError("Path immagine non disponibile nel dataset")
+    if dataset_name == 'OCTDL':
+        df_labels = pd.read_csv(dataset_path / LABELS_CSV)[["file_name", "patient_id"]]
+        filename_to_patient = dict(zip(df_labels['file_name'], df_labels['patient_id'].astype(str)))
 
-    filename = Path(file_path).name
-    example["patient_id"] = get_patient_id(filename)
+        for example in dataset:
+            image_obj = example['image']
+            path = None
+            if isinstance(image_obj, dict):
+                path = image_obj.get('path')
+            if path is None and hasattr(image_obj, 'filename'):
+                path = image_obj.filename
+            if path is None:
+                raise ValueError("Path immagine non disponibile nel dataset")
+            filename = Path(path).name
+            patient_id = filename_to_patient.get(filename)
+            if patient_id is None:
+                raise ValueError(f"Patient ID non trovato per il file '{filename}'")
+            patient_ids_list.append(str(patient_id))
+    else:
+        for example in dataset:
+            image_obj = example['image']
+            path = None
+            if isinstance(image_obj, dict):
+                path = image_obj.get('path')
+            if path is None and hasattr(image_obj, 'filename'):
+                path = image_obj.filename
+            if path is None:
+                raise ValueError("Path immagine non disponibile nel dataset")
+            filename = Path(path).stem
+            patient_ids_list.append(str(get_patient_id(filename)))
 
-    dataset = dataset.map(
-    lambda ex, idx: extract_patient_id(ex, idx),
-    with_indices=True,
-    num_proc=NUM_PROC
-    )
-    
-    return example
+    # Aggiungi patient_id al dataset
+    dataset = dataset.add_column('patient_id', patient_ids_list)
+
+    # raggruppa per patient_id
+    patient_indices = {}
+    for idx in range(len(dataset)):
+        pid = dataset[idx]['patient_id']
+        if pid not in patient_indices:
+            patient_indices[pid] = []
+        patient_indices[pid].append(idx)
+
+    # ottiene la lista unica di patient_id e la shuffla per riproducibilità
+    patient_ids = list(patient_indices.keys())
+    random.shuffle(patient_ids)
+
+    # calcola i punti di split basati su patient_id
+    num_patients = len(patient_ids)
+    train_patient_count = int(num_patients * train_sz)
+    eval_patient_count = int(num_patients * eval_sz)
+
+    train_patient_ids = patient_ids[:train_patient_count]
+    eval_patient_ids = patient_ids[train_patient_count:train_patient_count + eval_patient_count]
+    test_patient_ids = patient_ids[train_patient_count + eval_patient_count:]
+
+    # raccoglie gli indici delle immagini per ogni split
+    train_indices = []
+    eval_indices = []
+    test_indices = []
+
+    for pid in train_patient_ids:
+        train_indices.extend(patient_indices[pid])
+    for pid in eval_patient_ids:
+        eval_indices.extend(patient_indices[pid])
+    for pid in test_patient_ids:
+        test_indices.extend(patient_indices[pid])
+
+    # crea i dataset splits usando select
+    train_dataset = dataset.select(train_indices)
+    eval_dataset = dataset.select(eval_indices)
+    test_dataset = dataset.select(test_indices)
+
+    # rimuove la colonna patient_id (non serve più per il training)
+    train_dataset = train_dataset.remove_columns(['patient_id'])
+    eval_dataset = eval_dataset.remove_columns(['patient_id'])
+    test_dataset = test_dataset.remove_columns(['patient_id'])
+
+    # compone l'oggetto DatasetDict
+    dataset = datasets.DatasetDict({
+        'train': train_dataset,
+        'eval': eval_dataset,
+        'test': test_dataset
+    })
+
+    return dataset
+
 
     
 

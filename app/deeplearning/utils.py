@@ -117,9 +117,9 @@ def _build_splitted_dataset_from_files(dataset_path, dataset_name):
             raise ValueError(f"Etichetta '{label_name}' non valida per il dataset '{dataset_name}'")
 
         if dataset_name == 'OCTDL':
-            patient_id = filename_to_patient.get(image_path.name)
+            patient_id = filename_to_patient.get(image_path.stem)
             if patient_id is None:
-                raise ValueError(f"Patient ID non trovato per il file '{image_path.name}'")
+                raise ValueError(f"Patient ID non trovato per il file '{image_path.name}' (stem={image_path.stem})")
         else:
             patient_id = str(get_patient_id(image_path.stem))
 

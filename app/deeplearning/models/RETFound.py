@@ -133,9 +133,11 @@ def augment(examples):
     """
     Data augmentation for training.
     
-    Applies geometric transformations suitable for medical imaging:
+    Applies geometric and color transformations suitable for medical imaging:
     - Random horizontal and vertical flips (preserves medical semantics for OCT)
     - Mild rotation (±10 degrees)
+    - Color jitter (brightness, contrast, saturation)
+    - Gaussian blur for robustness
     
     Args:
         examples: dict with 'image' key containing PIL images
@@ -147,6 +149,8 @@ def augment(examples):
         transforms.RandomHorizontalFlip(p=0.5),
         transforms.RandomVerticalFlip(p=0.5),
         transforms.RandomRotation(degrees=10),
+        transforms.ColorJitter(brightness=0.1, contrast=0.1, saturation=0.1),
+        transforms.GaussianBlur(kernel_size=3, sigma=(0.1, 2.0)),
     ])
 
     # Apply augmentation to training data

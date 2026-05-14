@@ -1,6 +1,6 @@
 from sklearn.metrics import accuracy_score
 import torch
-from transformers import Trainer, TrainingArguments
+from transformers import Trainer, TrainingArguments, EarlyStoppingCallback
 from pathlib import Path
 import re
 
@@ -40,8 +40,11 @@ def load_training_args():
         logging_strategy="epoch",
         logging_steps=1,
         num_train_epochs=20,
-        load_best_model_at_end=False,
-        metric_for_best_model="accuracy"
+        load_best_model_at_end=True,
+        metric_for_best_model="eval_accuracy",
+        save_total_limit=3,  # Keep only last 3 checkpoints
+        lr_scheduler_type="cosine_with_restarts",  # Better for ViT
+        warmup_steps=100,  # Add warmup
     )
 
 def ask_checkpoint_name(model_name):
@@ -140,7 +143,8 @@ def train(model_name, checkpoint_name=None, dataset_name=DEFAULT_DATASET, datase
         args=training_args,
         train_dataset=dataset['train'],
         eval_dataset=dataset['eval'],
-        compute_metrics=compute_metrics_for_eval
+        compute_metrics=compute_metrics_for_eval,
+        callbacks=[EarlyStoppingCallback(early_stopping_patience=5)]  # Stop if no improvement for 5 epochs
     )
 
     # training vero e proprio

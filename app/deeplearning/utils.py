@@ -44,7 +44,7 @@ def check_valid_dataset(dataset_name):
         )
 
     print(f"[DEBUG] Trovate {len(images)} immagini nel dataset '{dataset_name}'")
-    
+
 def get_checkpoint_path(model_name, checkpoint_name):
 
     # guardia per il modello (deve esistere una cartella)
@@ -98,64 +98,27 @@ def load_splitted_dataset_from_name(dataset_name, dataset_split):
     dataset = dataset['train']  # estrae il split train
 
     # estrae i patient_id per ogni immagine
-    def extract_patient_id(example):
-        example['patient_id'] = get_patient_id(example['image'].filename.split('/')[-1])
-        return example
+def extract_patient_id(example, idx):
+    # HF imagefolder conserva il path qui
+    file_path = example["image"].get("path", None)
 
-    dataset = dataset.map(extract_patient_id, num_proc=NUM_PROC)
+    if file_path is None:
+        raise ValueError("Path immagine non disponibile nel dataset")
 
-    # raggruppa per patient_id
-    patient_indices = {}
-    for idx, example in enumerate(dataset):
-        pid = example['patient_id']
-        if pid not in patient_indices:
-            patient_indices[pid] = []
-        patient_indices[pid].append(idx)
+    filename = Path(file_path).name
+    example["patient_id"] = get_patient_id(filename)
 
-    # ottiene la lista unica di patient_id e la shuffla per riproducibilità
-    patient_ids = list(patient_indices.keys())
-    random.shuffle(patient_ids)
+    dataset = dataset.map(
+    lambda ex, idx: extract_patient_id(ex, idx),
+    with_indices=True,
+    num_proc=NUM_PROC
+    )
+    
+    return example
 
-    # calcola i punti di split basati su patient_id
-    num_patients = len(patient_ids)
-    train_patient_count = int(num_patients * train_sz)
-    eval_patient_count = int(num_patients * eval_sz)
+    
 
-    train_patient_ids = patient_ids[:train_patient_count]
-    eval_patient_ids = patient_ids[train_patient_count:train_patient_count + eval_patient_count]
-    test_patient_ids = patient_ids[train_patient_count + eval_patient_count:]
-
-    # raccoglie gli indici delle immagini per ogni split
-    train_indices = []
-    eval_indices = []
-    test_indices = []
-
-    for pid in train_patient_ids:
-        train_indices.extend(patient_indices[pid])
-    for pid in eval_patient_ids:
-        eval_indices.extend(patient_indices[pid])
-    for pid in test_patient_ids:
-        test_indices.extend(patient_indices[pid])
-
-    # crea i dataset splits usando select
-    train_dataset = dataset.select(train_indices)
-    eval_dataset = dataset.select(eval_indices)
-    test_dataset = dataset.select(test_indices)
-
-    # rimuove la colonna patient_id (non serve più per il training)
-    train_dataset = train_dataset.remove_columns(['patient_id'])
-    eval_dataset = eval_dataset.remove_columns(['patient_id'])
-    test_dataset = test_dataset.remove_columns(['patient_id'])
-
-    # compone l'oggetto DatasetDict
-    dataset = datasets.DatasetDict({
-        'train': train_dataset,
-        'eval': eval_dataset,
-        'test': test_dataset
-    })
-
-    return dataset
-
+    
 def set_seed(seed=DEFAULT_SEED):
     # imposta il seed di tutte le funzioni che usano
     # generazione pseudo-randomica

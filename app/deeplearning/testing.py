@@ -93,9 +93,11 @@ def load_for_test(model_name, checkpoint_name, dataset_name, dataset_split):
     print_info(f"Caricamento del dataset '{dataset_name}'...")
     dataset = load_splitted_dataset_from_name(dataset_name, dataset_split)
 
-    # preprocessing dei dati
-    print_info("Preprocessing dei dati...")
-    dataset = dataset.map(preprocessor, batched=True, batch_size=PREPROCESS_BATCH_SIZE, num_proc=1)
+    # preprocessing on-the-fly per esempio
+    print_info("Preprocessing dei dati (on-the-fly)...")
+    dataset['train'] = attach_image_transform(dataset['train'], preprocessor)
+    dataset['eval']  = attach_image_transform(dataset['eval'], preprocessor)
+    dataset['test']  = attach_image_transform(dataset['test'], preprocessor)
 
     # creazione delle etichette
     labels = dataset['train'].features['label'].names

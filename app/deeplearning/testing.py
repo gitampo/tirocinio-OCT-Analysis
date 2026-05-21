@@ -95,7 +95,7 @@ def load_for_test(model_name, checkpoint_name, dataset_name, dataset_split):
 
     # preprocessing dei dati
     print_info("Preprocessing dei dati...")
-    dataset = dataset.map(preprocessor, batched=True, batch_size=PREPROCESS_BATCH_SIZE, num_proc=NUM_PROC)
+    dataset = dataset.map(preprocessor, batched=True, batch_size=PREPROCESS_BATCH_SIZE, num_proc=1)
 
     # creazione delle etichette
     labels = dataset['train'].features['label'].names

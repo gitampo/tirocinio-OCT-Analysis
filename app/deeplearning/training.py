@@ -117,7 +117,7 @@ def load_for_train(model_name, checkpoint_name, dataset_name, dataset_split, fro
 
     # preprocessing dei dati
     print_info("Preprocessing dei dati...")
-    dataset = dataset.map(train_preprocessor, batched=True, batch_size=PREPROCESS_BATCH_SIZE, num_proc=NUM_PROC)
+    dataset = dataset.map(train_preprocessor, batched=True, batch_size=PREPROCESS_BATCH_SIZE, num_proc=1)
 
     return model, training_args, dataset
 

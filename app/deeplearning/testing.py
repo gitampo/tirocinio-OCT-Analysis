@@ -35,6 +35,7 @@ from utils.print import (
 from .utils import ( 
     get_checkpoint_path,   
     load_splitted_dataset_from_name,      
+    attach_image_transform,
     set_seed 
 )
 

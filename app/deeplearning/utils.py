@@ -198,6 +198,21 @@ def load_splitted_dataset_from_name(dataset_name, dataset_split):
     
 
     
+def attach_image_transform(dataset, preprocessor):
+    """Attach an on-the-fly image preprocessing transform to a dataset."""
+    def transform(batch):
+        images = batch['image']
+        if len(images) > 0 and isinstance(images[0], list):
+            images = images[0]
+        processed = preprocessor({'image': images})
+        return {
+            'pixel_values': processed['pixel_values'],
+            'label': batch['label']
+        }
+
+    return dataset.with_transform(transform)
+
+
 def set_seed(seed=DEFAULT_SEED):
     # imposta il seed di tutte le funzioni che usano
     # generazione pseudo-randomica

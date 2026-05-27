@@ -7,6 +7,7 @@ from sklearn.metrics import (
     matthews_corrcoef,
     confusion_matrix,
     precision_score,
+    multilabel_confusion_matrix,
 )
 import torch
 from transformers import Trainer, TrainingArguments
@@ -35,9 +36,26 @@ from utils.print import (
 from .utils import ( 
     get_checkpoint_path,   
     load_splitted_dataset_from_name,      
-    attach_image_transform,
     set_seed 
 )
+
+def specificity_score(y_true, y_pred, average='macro'):
+    labels = np.unique(np.concatenate([y_true, y_pred]))
+    cm = multilabel_confusion_matrix(y_true, y_pred, labels=labels)
+
+    tn = cm[:, 0, 0].astype(float)
+    fp = cm[:, 0, 1].astype(float)
+    specificity_values = tn / (tn + fp + 1e-12)
+
+    if average is None:
+        return specificity_values
+    if average == 'micro':
+        return tn.sum() / (tn.sum() + fp.sum() + 1e-12)
+    if average == 'weighted':
+        weights = np.array([np.sum(y_true == label) for label in labels], dtype=float)
+        return np.average(specificity_values, weights=weights)
+    return np.mean(specificity_values)
+
 
 # dizionario globale e altre variabili per le metriche
 metrics = {  
@@ -46,12 +64,14 @@ metrics = {
     "classes_f1_score":   {"format":".3f", "fun":f1_score,                "kwargs":{"average":None}       },
     "classes_recall":     {"format":".3f", "fun":recall_score,            "kwargs":{"average":None}       },
     "classes_precision":  {"format":".3f", "fun":precision_score,         "kwargs":{"average":None}       },
+    "classes_specificity":{"format":".3f", "fun":specificity_score,     "kwargs":{"average":None}       },
     "f1_score_micro":     {"format":".3f", "fun":f1_score,                "kwargs":{"average":"micro"}    },
     "recall_micro":       {"format":".3f", "fun":recall_score,            "kwargs":{"average":"micro"}    },
     "precision_micro":    {"format":".3f", "fun":precision_score,         "kwargs":{"average":"micro"}    },
     "f1_score_macro":     {"format":".3f", "fun":f1_score,                "kwargs":{"average":"macro"}    },
     "recall_macro":       {"format":".3f", "fun":recall_score,            "kwargs":{"average":"macro"}    },
     "precision_macro":    {"format":".3f", "fun":precision_score,         "kwargs":{"average":"macro"}    },
+    "specificity":        {"format":".3f", "fun":specificity_score,     "kwargs":{"average":"macro"}    },
     "f1_score_weighted":  {"format":".3f", "fun":f1_score,                "kwargs":{"average":"weighted"} },
     "recall_weighted":    {"format":".3f", "fun":recall_score,            "kwargs":{"average":"weighted"} },
     "precision_weighted": {"format":".3f", "fun":precision_score,         "kwargs":{"average":"weighted"} },
@@ -80,7 +100,7 @@ def compute_metrics_for_test(eval_pred):
     computed_metrics = {metric: compute_metric(metric, labels, preds) for metric in metrics}
     return computed_metrics
 
-def load_for_test(model_name, checkpoint_name, dataset_name, dataset_split):
+def load_for_test(model_name, checkpoint_name, dataset_name, dataset_split, seed=DEFAULT_SEED):
     # caricamento del modello e del preprocess
     model = load_model(model_name)
     preprocessor = get_preprocessor(model_name)
@@ -92,13 +112,31 @@ def load_for_test(model_name, checkpoint_name, dataset_name, dataset_split):
 
     # caricamento del dataset
     print_info(f"Caricamento del dataset '{dataset_name}'...")
-    dataset = load_splitted_dataset_from_name(dataset_name, dataset_split)
+    dataset = load_splitted_dataset_from_name(dataset_name, dataset_split, DEFAULT_SEED)
 
-    # preprocessing on-the-fly per esempio
-    print_info("Preprocessing dei dati (on-the-fly)...")
-    dataset['train'] = attach_image_transform(dataset['train'], preprocessor)
-    dataset['eval']  = attach_image_transform(dataset['eval'], preprocessor)
-    dataset['test']  = attach_image_transform(dataset['test'], preprocessor)
+    # preprocessing dei dati
+    print_info("Preprocessing dei dati...")
+    dataset['train'] = dataset['train'].map(
+        preprocessor,
+        batched=True,
+        batch_size=PREPROCESS_BATCH_SIZE,
+        num_proc=1,
+        remove_columns=['image']
+    )
+    dataset['eval'] = dataset['eval'].map(
+        preprocessor,
+        batched=True,
+        batch_size=PREPROCESS_BATCH_SIZE,
+        num_proc=1,
+        remove_columns=['image']
+    )
+    dataset['test'] = dataset['test'].map(
+        preprocessor,
+        batched=True,
+        batch_size=PREPROCESS_BATCH_SIZE,
+        num_proc=1,
+        remove_columns=['image']
+    )
 
     # creazione delle etichette
     labels = dataset['train'].features['label'].names
@@ -168,7 +206,7 @@ def test(model_name, checkpoint_name, dataset_name=DEFAULT_DATASET, dataset_spli
 
     # caricamento del modello e del dataset
     model, dataset, labels = load_for_test(model_name, checkpoint_name,
-                                           dataset_name, dataset_split)
+                                           dataset_name, dataset_split, seed)
 
     # creazione del trainer
     trainer = Trainer(

@@ -1,9 +1,11 @@
 from pathlib import Path
+from collections import Counter
 import pandas as pd
 import numpy as np
 import datasets
 import random
 import torch
+from sklearn.model_selection import StratifiedShuffleSplit
 
 from . import *
 from configs.paths import (
@@ -137,13 +139,41 @@ def _build_splitted_dataset_from_files(dataset_path, dataset_name):
     return dataset
 
 
-def load_splitted_dataset_from_name(dataset_name, dataset_split):
+def _get_patient_majority_labels(dataset):
+    patient_labels = {}
+    for example in dataset:
+        pid = example['patient_id']
+        patient_labels.setdefault(pid, []).append(example['label'])
+
+    return {
+        pid: Counter(labels).most_common(1)[0][0]
+        for pid, labels in patient_labels.items()
+    }
+
+
+def _stratified_patient_split(patient_ids, patient_labels, test_size, seed):
+    if test_size <= 0 or len(patient_ids) == 0:
+        return np.arange(len(patient_ids)), np.array([], dtype=patient_ids.dtype)
+
+    try:
+        splitter = StratifiedShuffleSplit(n_splits=1, test_size=test_size, random_state=seed)
+        train_idx, test_idx = next(splitter.split(patient_ids, patient_labels))
+        return train_idx, test_idx
+    except ValueError:
+        rng = np.random.default_rng(seed)
+        perm = rng.permutation(len(patient_ids))
+        split = int(np.round(len(patient_ids) * test_size))
+        return perm[split:], perm[:split]
+
+
+def load_splitted_dataset_from_name(dataset_name, dataset_split, seed=DEFAULT_SEED):
     """
     Carica il dataset con split a livello di paziente (anti-leakage).
     
     Raggruppa le immagini per patient_id e divide i gruppi di pazienti
     (non le singole immagini) in train/eval/test. Questo garantisce che
-    nessun paziente appare in più split.
+    nessun paziente appare in più split e mantiene la distribuzione delle
+    classi con una stratificazione basata sul label di paziente.
     """
     if dataset_name not in ['OCTDL', 'OCT2017']:
         raise ValueError(f"Dataset '{dataset_name}' non supportato per lo split anti-leakage")
@@ -162,16 +192,24 @@ def load_splitted_dataset_from_name(dataset_name, dataset_split):
         pid = example['patient_id']
         patient_indices.setdefault(pid, []).append(idx)
 
-    patient_ids = list(patient_indices.keys())
-    random.shuffle(patient_ids)
+    patient_majority_labels = _get_patient_majority_labels(dataset)
+    patient_ids = np.array(list(patient_majority_labels.keys()))
+    patient_labels = np.array(list(patient_majority_labels.values()))
 
-    num_patients = len(patient_ids)
-    train_patient_count = int(num_patients * train_sz)
-    eval_patient_count = int(num_patients * eval_sz)
+    # Stratified split per paziente per mantenere la distribuzione delle classi
+    trainval_idx, test_idx = _stratified_patient_split(patient_ids, patient_labels, test_sz, seed)
+    trainval_patient_ids = patient_ids[trainval_idx]
+    trainval_patient_labels = patient_labels[trainval_idx]
+    test_patient_ids = patient_ids[test_idx]
 
-    train_patient_ids = patient_ids[:train_patient_count]
-    eval_patient_ids = patient_ids[train_patient_count:train_patient_count + eval_patient_count]
-    test_patient_ids = patient_ids[train_patient_count + eval_patient_count:]
+    if eval_sz > 0:
+        relative_eval_size = eval_sz / (train_sz + eval_sz)
+        train_idx, eval_idx = _stratified_patient_split(trainval_patient_ids, trainval_patient_labels, relative_eval_size, seed)
+        train_patient_ids = trainval_patient_ids[train_idx]
+        eval_patient_ids = trainval_patient_ids[eval_idx]
+    else:
+        train_patient_ids = trainval_patient_ids
+        eval_patient_ids = np.array([], dtype=trainval_patient_ids.dtype)
 
     train_indices = []
     eval_indices = []

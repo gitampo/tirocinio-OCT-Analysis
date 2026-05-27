@@ -5,20 +5,20 @@ from torch.utils.data import Dataset, Subset
 from transformers import Trainer, TrainingArguments
 from pathlib import Path
 from PIL import Image
-from sklearn.model_selection import GroupKFold
+from sklearn.model_selection import StratifiedGroupKFold
 from contextlib import contextmanager
 
 from utils.funs import get_available_filename
 from utils.log import log_print
 from configs.paths import PT_datasets_dir, PT_log_dir
 from utils.print import RST, formatted, humanized, print_info, print_separator, print_success_box, print_table
-from .training import load_training_args
+from .training import load_training_args, set_seed
 from .datasets import OCTDL
-from .training import set_seed, load_training_args
 from .testing import (
     compute_metrics_for_test, 
     print_results,
     metrics_names,
+    metrics_formats,
 )
 from . import TRAIN_BATCH_SIZE, TEST_BATCH_SIZE
 from .model_factory import (
@@ -29,7 +29,7 @@ from .model_factory import (
 from . import DEFAULT_KFOLDS, DEFAULT_SEED, TEST_BATCH_SIZE
 
 class KFoldDataset(Dataset):
-    def __init__(self, model_name):
+    def __init__(self, model_name, seed=DEFAULT_SEED):
         dataset_root = Path(PT_datasets_dir.strip())
         candidate_dataset_path = dataset_root / OCTDL.DATASET_NAME
 
@@ -68,8 +68,9 @@ class KFoldDataset(Dataset):
 
         # indici casuali per il rimescolamento del dataset
         self.num_examples = len(self.image_paths)
-        indices = np.random.permutation(self.num_examples)
-        
+        rng = np.random.default_rng(seed)
+        indices = rng.permutation(self.num_examples)
+
         # rimescolamento del dataset
         self.image_paths = np.array(self.image_paths)[indices]
         self.labels = np.array(self.labels)[indices]
@@ -358,7 +359,7 @@ def print_class_distribution_per_fold(gkf, dataset):
 
     folds_distributions = []
     tot = len(dataset.labels)
-    for fold_idx, (train_idx, val_idx) in enumerate(gkf.split(X=dataset.image_paths, groups=dataset.patients), start=1):
+    for fold_idx, (train_idx, val_idx) in enumerate(gkf.split(X=dataset.image_paths, y=dataset.labels, groups=dataset.patients), start=1):
 
         # subset di training e di validazione
         fold_dataset_train = Subset(dataset, train_idx)
@@ -393,10 +394,11 @@ def kfold_cv(model_name, num_folds=DEFAULT_KFOLDS, seed=DEFAULT_SEED):
     set_seed(seed)
 
     # caricamento del dataset per la K-fold cross validation (Dataset custom)
-    dataset = KFoldDataset(model_name)
+    dataset = KFoldDataset(model_name, seed=seed)
 
-    # istanziazione delle K-fold (GroupKFold per evitare data leakage tra pazienti)
-    gkf = GroupKFold(n_splits=num_folds)
+    # istanziazione delle K-fold (StratifiedGroupKFold per mantenere le classi bilanciate
+    # tra i fold e evitare data leakage tra pazienti)
+    gkf = StratifiedGroupKFold(n_splits=num_folds)
 
     # funzione per stampare la distribuzione delle classi in ogni fold
     print_class_distribution_per_fold(gkf, dataset)
@@ -415,7 +417,7 @@ def kfold_cv(model_name, num_folds=DEFAULT_KFOLDS, seed=DEFAULT_SEED):
     fold_idx = 1
     outputs = []
     classes_outputs = []
-    for train_idx, val_idx in gkf.split(X=dataset.image_paths, groups=dataset.patients):
+    for train_idx, val_idx in gkf.split(X=dataset.image_paths, y=dataset.labels, groups=dataset.patients):
         print_info(f"Fold {fold_idx}/{num_folds}")
         log_print(log_filestem, f"Fold {fold_idx}/{num_folds}")
 

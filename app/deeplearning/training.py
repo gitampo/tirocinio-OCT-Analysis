@@ -1,8 +1,10 @@
-from sklearn.metrics import accuracy_score
+import json
+import re
+from pathlib import Path
+
+import datasets
 import torch
 from transformers import Trainer, TrainingArguments, EarlyStoppingCallback
-from pathlib import Path
-import re
 
 from . import (
     DEFAULT_DATASET,
@@ -14,6 +16,7 @@ from . import (
     TRAIN_BATCH_SIZE
 )
 from .model_factory import get_train_preprocessor, load_model
+from .testing import compute_metrics_for_test
 from configs.paths import PT_checkpoints_dir, PT_trainer_output_dir
 from utils.print import (
     print_separator, 
@@ -25,7 +28,6 @@ from utils.print import (
 from .utils import (
     get_checkpoint_path,
     load_splitted_dataset_from_name,
-    attach_image_transform,
     set_seed
 )
 
@@ -46,7 +48,25 @@ def load_training_args():
         save_total_limit=3,  # Keep only last 3 checkpoints
         lr_scheduler_type="cosine_with_restarts",  # Better for ViT
         warmup_steps=100,  # Add warmup
+        seed=DEFAULT_SEED,
     )
+
+
+def save_experiment_metadata(model_name, training_args):
+    metadata = {
+        "model_name": model_name,
+        "seed": training_args.seed,
+        "training_args": training_args.to_dict(),
+        "torch_version": torch.__version__,
+        "transformers_version": __import__("transformers").__version__,
+        "datasets_version": datasets.__version__,
+    }
+    Path(training_args.output_dir).mkdir(parents=True, exist_ok=True)
+    metadata_path = Path(training_args.output_dir) / "experiment_metadata.json"
+    with metadata_path.open("w", encoding="utf-8") as handle:
+        json.dump(metadata, handle, indent=2)
+    print_info(f"Experiment metadata salvata in: {metadata_path}")
+
 
 def ask_checkpoint_name(model_name):
     # dichiarazione variabili per il salvataggio del checkpoint
@@ -94,12 +114,13 @@ def ask_checkpoint_name(model_name):
 
     return new_checkpoint_name, new_checkpoint_path, wants_to_overwrite
 
-def load_for_train(model_name, checkpoint_name, dataset_name, dataset_split, from_scratch):
+def load_for_train(model_name, checkpoint_name, dataset_name, dataset_split, from_scratch, seed=DEFAULT_SEED):
     # caricamento del modello e degli argomenti di training
     model = load_model(model_name)
 
     # caricamento degli argomenti di training
     training_args = load_training_args()
+    save_experiment_metadata(model_name, training_args)
     train_preprocessor = get_train_preprocessor(model_name)
 
     # caricamento del checkpoint
@@ -114,13 +135,31 @@ def load_for_train(model_name, checkpoint_name, dataset_name, dataset_split, fro
 
     # caricamento del dataset
     print_info(f"Caricamento del dataset '{dataset_name}'...")
-    dataset = load_splitted_dataset_from_name(dataset_name, dataset_split)
+    dataset = load_splitted_dataset_from_name(dataset_name, dataset_split, seed)
 
-    # preprocessing on-the-fly per esempio
-    print_info("Preprocessing dei dati (on-the-fly)...")
-    dataset['train'] = attach_image_transform(dataset['train'], train_preprocessor)
-    dataset['eval']  = attach_image_transform(dataset['eval'], train_preprocessor)
-    dataset['test']  = attach_image_transform(dataset['test'], train_preprocessor)
+    # preprocessing dei dati
+    print_info("Preprocessing dei dati...")
+    dataset['train'] = dataset['train'].map(
+        train_preprocessor,
+        batched=True,
+        batch_size=PREPROCESS_BATCH_SIZE,
+        num_proc=1,
+        remove_columns=['image']
+    )
+    dataset['eval'] = dataset['eval'].map(
+        train_preprocessor,
+        batched=True,
+        batch_size=PREPROCESS_BATCH_SIZE,
+        num_proc=1,
+        remove_columns=['image']
+    )
+    dataset['test'] = dataset['test'].map(
+        train_preprocessor,
+        batched=True,
+        batch_size=PREPROCESS_BATCH_SIZE,
+        num_proc=1,
+        remove_columns=['image']
+    )
 
     return model, training_args, dataset
 
@@ -132,13 +171,11 @@ def train(model_name, checkpoint_name=None, dataset_name=DEFAULT_DATASET, datase
     # caricamento del modello, degli argomenti di training e del dataset
     model,         \
     training_args, \
-    dataset = load_for_train(model_name, checkpoint_name, dataset_name, dataset_split, from_scratch)
+    dataset = load_for_train(model_name, checkpoint_name, dataset_name, dataset_split, from_scratch, seed)
 
     # funzione per il calcolo delle metriche di valutazione
     def compute_metrics_for_eval(eval_pred):
-        logits, labels = eval_pred
-        preds = logits.argmax(axis=-1) # calcolo delle predizioni
-        return {"accuracy": accuracy_score(labels, preds)}
+        return compute_metrics_for_test(eval_pred)
 
     # creazione del trainer
     trainer = Trainer(

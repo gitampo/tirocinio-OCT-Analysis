@@ -63,11 +63,11 @@ metrics = {
     "balanced_accuracy":  {"format":".3f", "fun":balanced_accuracy_score, "kwargs":{}                     },
     "classes_f1_score":   {"format":".3f", "fun":f1_score,                "kwargs":{"average":None}       },
     "classes_recall":     {"format":".3f", "fun":recall_score,            "kwargs":{"average":None}       },
-    "classes_precision":  {"format":".3f", "fun":precision_score,         "kwargs":{"average":None}       },
+    "classes_precision":  {"format":".3f", "fun":precision_score,         "kwargs":{"average":None, "zero_division":0}       },
     "classes_specificity":{"format":".3f", "fun":specificity_score,     "kwargs":{"average":None}       },
     "f1_score_micro":     {"format":".3f", "fun":f1_score,                "kwargs":{"average":"micro"}    },
     "recall_micro":       {"format":".3f", "fun":recall_score,            "kwargs":{"average":"micro"}    },
-    "precision_micro":    {"format":".3f", "fun":precision_score,         "kwargs":{"average":"micro"}    },
+    "precision_micro":    {"format":".3f", "fun":precision_score,         "kwargs":{"average":"micro", "zero_division":0}    },
     "f1_score_macro":     {"format":".3f", "fun":f1_score,                "kwargs":{"average":"macro"}    },
     "recall_macro":       {"format":".3f", "fun":recall_score,            "kwargs":{"average":"macro"}    },
     "precision_macro":    {"format":".3f", "fun":precision_score,         "kwargs":{"average":"macro"}    },
@@ -97,7 +97,17 @@ def compute_metrics_for_test(eval_pred):
     preds = logits.argmax(axis=-1)
 
     # calcolo delle metriche
-    computed_metrics = {metric: compute_metric(metric, labels, preds) for metric in metrics}
+    def normalize_metric(value):
+        if isinstance(value, np.ndarray):
+            return value.tolist()
+        if isinstance(value, np.generic):
+            return value.item()
+        return value
+
+    computed_metrics = {
+        metric: normalize_metric(compute_metric(metric, labels, preds))
+        for metric in metrics
+    }
     return computed_metrics
 
 def load_for_test(model_name, checkpoint_name, dataset_name, dataset_split, seed=DEFAULT_SEED):

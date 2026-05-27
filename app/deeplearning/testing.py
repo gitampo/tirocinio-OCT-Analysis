@@ -120,21 +120,21 @@ def load_for_test(model_name, checkpoint_name, dataset_name, dataset_split, seed
         preprocessor,
         batched=True,
         batch_size=PREPROCESS_BATCH_SIZE,
-        num_proc=1,
+        num_proc=0,
         remove_columns=['image']
     )
     dataset['eval'] = dataset['eval'].map(
         preprocessor,
         batched=True,
         batch_size=PREPROCESS_BATCH_SIZE,
-        num_proc=1,
+        num_proc=0,
         remove_columns=['image']
     )
     dataset['test'] = dataset['test'].map(
         preprocessor,
         batched=True,
         batch_size=PREPROCESS_BATCH_SIZE,
-        num_proc=1,
+        num_proc=0,
         remove_columns=['image']
     )
 

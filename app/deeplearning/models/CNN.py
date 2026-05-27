@@ -174,8 +174,8 @@ def preprocess_batch(examples):
     # Conversione in RGB
     examples['image'] = [image.convert('RGB') for image in examples['image']]
 
-    # Processa il batch e trasforma le immagini in tensori PyTorch
-    processed_batch = processor(images=examples['image'], return_tensors="pt")
+    # Processa il batch e trasforma le immagini in array NumPy
+    processed_batch = processor(images=examples['image'], return_tensors="np")
 
     return processed_batch
 

@@ -123,8 +123,8 @@ def preprocess_batch(examples):
     # Convert to RGB (OCT images may be grayscale)
     examples['image'] = [image.convert('RGB') for image in examples['image']]
 
-    # Process using ViT processor and convert to PyTorch tensors
-    processed_batch = processor(images=examples['image'], return_tensors="pt")
+    # Process using ViT processor and return NumPy arrays for Dataset.map
+    processed_batch = processor(images=examples['image'], return_tensors="np")
 
     return processed_batch
 

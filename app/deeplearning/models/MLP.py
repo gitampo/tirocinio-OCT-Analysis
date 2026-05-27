@@ -9,7 +9,7 @@ def processor(images):
         transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
     ])
 
-    pixels = torch.cat([transform(image) for image in images])
+    pixels = torch.stack([transform(image) for image in images]).numpy()
 
     return { "pixel_values": pixels }
 

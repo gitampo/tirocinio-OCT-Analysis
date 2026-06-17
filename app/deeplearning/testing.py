@@ -57,6 +57,21 @@ def specificity_score(y_true, y_pred, average='macro'):
     return np.mean(specificity_values)
 
 
+def classes_mcc_score(y_true, y_pred):
+    """Calcola MCC per ciascuna classe (one-vs-rest)."""
+    labels = np.unique(np.concatenate([y_true, y_pred]))
+    mcc_values = []
+    for label in labels:
+        y_true_bin = (y_true == label).astype(int)
+        y_pred_bin = (y_pred == label).astype(int)
+        try:
+            val = float(matthews_corrcoef(y_true_bin, y_pred_bin))
+        except Exception:
+            val = float('nan')
+        mcc_values.append(val)
+    return np.array(mcc_values)
+
+
 # dizionario globale e altre variabili per le metriche
 metrics = {  
     "accuracy":           {"format":".3f", "fun":accuracy_score,          "kwargs":{}                     },
@@ -64,14 +79,14 @@ metrics = {
     "classes_f1_score":   {"format":".3f", "fun":f1_score,                "kwargs":{"average":None}       },
     "classes_recall":     {"format":".3f", "fun":recall_score,            "kwargs":{"average":None}       },
     "classes_precision":  {"format":".3f", "fun":precision_score,         "kwargs":{"average":None, "zero_division":0}       },
-    "classes_specificity":{"format":".3f", "fun":specificity_score,     "kwargs":{"average":None}       },
+    "classes_MCC":       {"format":".3f", "fun":classes_mcc_score,   "kwargs":{}                   },
     "f1_score_micro":     {"format":".3f", "fun":f1_score,                "kwargs":{"average":"micro"}    },
     "recall_micro":       {"format":".3f", "fun":recall_score,            "kwargs":{"average":"micro"}    },
     "precision_micro":    {"format":".3f", "fun":precision_score,         "kwargs":{"average":"micro", "zero_division":0}    },
     "f1_score_macro":     {"format":".3f", "fun":f1_score,                "kwargs":{"average":"macro"}    },
     "recall_macro":       {"format":".3f", "fun":recall_score,            "kwargs":{"average":"macro"}    },
     "precision_macro":    {"format":".3f", "fun":precision_score,         "kwargs":{"average":"macro"}    },
-    "specificity":        {"format":".3f", "fun":specificity_score,     "kwargs":{"average":"macro"}    },
+    # riepilogo delle metriche pesate (weighted) per tenere conto della distribuzione delle classi
     "f1_score_weighted":  {"format":".3f", "fun":f1_score,                "kwargs":{"average":"weighted"} },
     "recall_weighted":    {"format":".3f", "fun":recall_score,            "kwargs":{"average":"weighted"} },
     "precision_weighted": {"format":".3f", "fun":precision_score,         "kwargs":{"average":"weighted"} },

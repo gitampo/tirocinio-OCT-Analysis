@@ -1,3 +1,4 @@
+import numpy as np
 import torch
 from .datasets import OCTDL
 from .model_factory import (
@@ -50,6 +51,10 @@ def infer_disease(images, seed=DEFAULT_SEED):
 
         # prepara gli input
         inputs = batch_to_infer['pixel_values']
+        if isinstance(inputs, np.ndarray):
+            inputs = torch.from_numpy(inputs).float()
+        elif isinstance(inputs, list):
+            inputs = torch.stack([torch.from_numpy(x).float() if isinstance(x, np.ndarray) else x for x in inputs])
 
         # esegue il forward pass
         outputs = model(inputs)

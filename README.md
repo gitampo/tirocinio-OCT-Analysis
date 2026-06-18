@@ -24,7 +24,7 @@ cd app/
 
 # eseguire lo script main.py
 python main.py
-````
+
 
 ## Struttura del progetto
 ``` bash

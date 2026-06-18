@@ -2,7 +2,7 @@
 import os
 from pathlib import Path
 
-# Get the app directory (where this file is located: app/configs/paths.py)
+# Prende il percorso assoluto della cartella dell'applicazione
 app_dir = Path(__file__).parent.parent.absolute()
 
 PT_app_logo = str(app_dir / 'assets/app_logo.png')

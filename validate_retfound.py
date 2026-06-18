@@ -1,11 +1,15 @@
 #!/usr/bin/env python3
 """
-Validation script for RETFound integration and patient-level anti-leakage splitting.
+A cosa serve questo script?
+Controlla che RETFound sia correttamente registrato in model_factory.py
+Verifica che il modello RETFound possa essere istanziato
+Controlla che le funzioni di preprocessing/augmentation esistano
+Verifica che il caricamento dello split anti-leakage sia presente
 
-This script validates:
-1. RETFound model is properly registered in model_factory
-2. Patient-level split logic can be instantiated
-3. No syntax errors in the new code
+Perché è utile
+È uno strumento di validazione rapida per lo sviluppo
+Non fa parte del training o dell’inferenza normale
+Serve a garantire che l’integrazione del nuovo modello sia corretta
 """
 
 import sys

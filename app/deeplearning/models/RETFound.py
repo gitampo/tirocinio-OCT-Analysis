@@ -32,7 +32,7 @@ def _load_preprocessor(model_name):
 # Configurazione del modello
 # RETFound è basato su ViT, quindi utilizzo la configurazione di ViT come base
 try:
-    config = ViTConfig.from_pretrained("google/vit-base-patch16-224")
+    config = ViTConfig()
     processor = _load_preprocessor('google/vit-base-patch16-224')
 except Exception:
     # Fallback configuration if HuggingFace models are unavailable

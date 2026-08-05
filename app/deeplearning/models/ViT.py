@@ -30,7 +30,7 @@ def _load_preprocessor(model_name):
 
 
 # Configurazione del modello
-config = ViTConfig.from_pretrained("google/vit-base-patch16-224")
+config = ViTConfig()
 
 # Processor per le immagini
 processor = _load_preprocessor('google/vit-base-patch16-224')

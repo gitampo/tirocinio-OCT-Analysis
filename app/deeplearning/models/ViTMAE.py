@@ -30,7 +30,7 @@ def _load_preprocessor(model_name):
 
 
 # Configurazione del modello
-config = ViTMAEConfig.from_pretrained("facebook/vit-mae-base")
+config = ViTMAEConfig()
 
 # Processor per le immagini
 processor = _load_preprocessor('facebook/vit-mae-base')

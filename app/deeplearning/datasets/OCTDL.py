@@ -1,5 +1,6 @@
 import pandas as pd 
 from pathlib import Path 
+from functools import lru_cache
 from configs.paths import PT_datasets_dir, find_octdl_dataset_root 
 
 DATASET_NAME = 'OCTDL' 
@@ -8,16 +9,17 @@ labels = ['AMD','DME','ERM','NO','RAO','RVO','VID'] # l'ordine è importante
 IMAGE_EXTENSIONS = ('.png', '.jpg', '.jpeg')
 
 
+@lru_cache(maxsize=None)
 def _discover_available_labels(dataset_root=None):
     if dataset_root is None:
         try:
             dataset_root = get_dataset_root()
         except FileNotFoundError:
-            return list(labels)
+            return tuple(labels)
 
     dataset_root = Path(dataset_root)
     if not dataset_root.exists():
-        return list(labels)
+        return tuple(labels)
 
     discovered = []
     for image_path in dataset_root.rglob('*'):
@@ -30,15 +32,15 @@ def _discover_available_labels(dataset_root=None):
             discovered.append(parent_name)
 
     if not discovered:
-        return list(labels)
+        return tuple(labels)
 
     ordered = [label for label in labels if label in discovered]
     ordered.extend([label for label in discovered if label not in ordered])
-    return ordered
+    return tuple(ordered)
 
 
 def get_task_labels(task_name='full', interest_classes=None, dataset_root=None):
-    available_labels = _discover_available_labels(dataset_root=dataset_root)
+    available_labels = list(_discover_available_labels(dataset_root=dataset_root))
 
     if task_name == 'full':
         return list(available_labels)
@@ -71,7 +73,7 @@ def label2id(label, task_name='full', interest_classes=None, dataset_root=None):
         return task_labels.index(label)
 
     if dataset_root is not None:
-        discovered_labels = _discover_available_labels(dataset_root=dataset_root)
+        discovered_labels = list(_discover_available_labels(dataset_root=dataset_root))
         if label in discovered_labels:
             task_labels = discovered_labels
             return task_labels.index(label)

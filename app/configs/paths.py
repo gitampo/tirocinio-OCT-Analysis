@@ -16,16 +16,28 @@ PT_log_dir = str(app_dir / 'logs/')
 # -------------------------
 # DATASET (KAGGLE + LOCAL)
 # -------------------------
-if os.path.exists("/kaggle/input"):
-    # Cerca il dataset OCTDL in posizioni Kaggle note
-    if os.path.exists("/kaggle/input/octdl"):
-        PT_datasets_dir = "/kaggle/input/octdl"
-    elif os.path.exists("/kaggle/input/octdl-optical-coherence-tomography-dataset"):
-        PT_datasets_dir = "/kaggle/input/octdl-optical-coherence-tomography-dataset"
-    elif os.path.exists("/kaggle/input/datasets/orvile/octdl-optical-coherence-tomography-dataset"):
-        PT_datasets_dir = "/kaggle/input/datasets/orvile/octdl-optical-coherence-tomography-dataset"
-    else:
-        # Se niente è trovato, fallback a local
-        PT_datasets_dir = str(app_dir / 'deeplearning/data/datasets/')
-else:
-    PT_datasets_dir = str(app_dir / 'deeplearning/data/datasets/')
+def _resolve_default_dataset_root():
+    known_candidates = [
+        "/kaggle/input/octdl",
+        "/kaggle/input/octdl-optical-coherence-tomography-dataset",
+        "/kaggle/input/datasets/orvile/octdl-optical-coherence-tomography-dataset",
+        "/kaggle/input/datasets/obulisainaren/retinal-oct-c8",
+        "/kaggle/input/retinal-oct-c8",
+        "/kaggle/input/datasets/obulisainaren/retinal-oct-c8/retinal-oct-c8",
+        "/kaggle/input/OCTDL",
+        "/kaggle/input/OCTDL/OCTDL",
+        "/kaggle/input/octdl/OCTDL",
+        "/kaggle/input/datasets/OCTDL",
+        "/kaggle/working/OCTDL",
+        str(app_dir / 'deeplearning/data/datasets/'),
+        str(app_dir / 'deeplearning/data/datasets/OCTDL'),
+    ]
+
+    for candidate in known_candidates:
+        if os.path.exists(candidate):
+            return candidate
+
+    return str(app_dir / 'deeplearning/data/datasets/')
+
+
+PT_datasets_dir = _resolve_default_dataset_root()

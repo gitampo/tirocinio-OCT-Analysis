@@ -51,16 +51,36 @@ class KFoldDataset(Dataset):
             except Exception:
                 pass
 
-        # lista di tutti i path delle immagini
-        self.image_paths = (
-            list(path_to_dataset.rglob("*.png")) +
-            list(path_to_dataset.rglob("*.jpg")) +
-            list(path_to_dataset.rglob("*.jpeg"))
-        )
+        # prova a trovare il dataset in vari percorsi possibili, inclusi quelli tipici di Kaggle
+        candidate_roots = []
+        for candidate in [
+            path_to_dataset,
+            dataset_root / OCTDL.DATASET_NAME,
+            dataset_root / OCTDL.DATASET_NAME.lower(),
+            Path('/kaggle/input/datasets/obulisainaren/retinal-oct-c8'),
+            Path('/kaggle/input/retinal-oct-c8'),
+            Path('/kaggle/input/datasets/obulisainaren/retinal-oct-c8/retinal-oct-c8'),
+            Path('/kaggle/input'),
+            Path('/kaggle/working'),
+        ]:
+            if candidate.exists():
+                candidate_roots.append(candidate)
+
+        self.image_paths = []
+        for candidate_root in candidate_roots:
+            self.image_paths.extend(list(candidate_root.rglob("*.png")))
+            self.image_paths.extend(list(candidate_root.rglob("*.jpg")))
+            self.image_paths.extend(list(candidate_root.rglob("*.jpeg")))
+            if self.image_paths:
+                break
 
         # verifica che siano state trovate immagini
         if not self.image_paths:
-            raise ValueError(f"Nessuna immagine trovata in {path_to_dataset}\nVerifica che il dataset sia presente e contenga file .png, .jpg o .jpeg")
+            searched_paths = ", ".join(str(path) for path in candidate_roots)
+            raise ValueError(
+                f"Nessuna immagine trovata nei percorsi: {searched_paths}\n"
+                "Verifica che il dataset sia montato correttamente o che il path sia corretto."
+            )
 
         self.task_labels = OCTDL.get_task_labels(task_name=task_name, interest_classes=interest_classes)
 

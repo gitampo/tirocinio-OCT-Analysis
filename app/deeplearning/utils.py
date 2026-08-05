@@ -30,7 +30,15 @@ def resolve_dataset_path(dataset_name):
     candidate_paths = [
         dataset_root / dataset_name,
         dataset_root / dataset_name.lower(),
-        dataset_root
+        dataset_root,
+        Path('/kaggle/input') / dataset_name,
+        Path('/kaggle/input') / dataset_name.lower(),
+        Path('/kaggle/input') / 'octdl',
+        Path('/kaggle/input') / 'octdl-optical-coherence-tomography-dataset',
+        Path('/kaggle/input') / 'datasets' / 'orvile' / 'octdl-optical-coherence-tomography-dataset',
+        Path('/kaggle/input') / 'datasets' / 'obulisainaren' / 'retinal-oct-c8',
+        Path('/kaggle/input') / 'retinal-oct-c8',
+        Path('/kaggle/input') / 'datasets' / 'obulisainaren' / 'retinal-oct-c8' / 'retinal-oct-c8',
     ]
 
     for candidate in candidate_paths:

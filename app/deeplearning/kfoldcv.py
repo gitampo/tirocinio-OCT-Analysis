@@ -95,7 +95,7 @@ class KFoldDataset(Dataset):
         else:
             label_to_id = {label: idx for idx, label in enumerate(self.task_labels)}
             self.labels = [label_to_id[self.image_paths[idx].parent.name] for idx in range(len(self.image_paths))]
-        self.patients = [OCTDL.get_patient_id(self.image_paths[idx].stem) for idx in range(len(self.image_paths))]
+        self.patients = [OCTDL.get_patient_id_safe(self.image_paths[idx].stem) for idx in range(len(self.image_paths))]
 
         # indici casuali per il rimescolamento del dataset
         self.num_examples = len(self.image_paths)

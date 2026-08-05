@@ -137,3 +137,10 @@ def get_patient_id(image_name):
         return int(df.loc[df["file_name"].astype(str) == stem, "patient_id"].values[0])
 
     return 0
+
+
+def get_patient_id_safe(image_name):
+    try:
+        return get_patient_id(image_name)
+    except Exception:
+        return 0

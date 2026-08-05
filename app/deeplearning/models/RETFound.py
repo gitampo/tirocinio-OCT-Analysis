@@ -1,12 +1,39 @@
+import os
 import torch
 from torchvision import transforms
 from transformers import ViTImageProcessor, ViTModel, ViTConfig
+
+
+def _use_pretrained_weights():
+    return os.getenv("OCT_USE_PRETRAINED", "0").lower() in {"1", "true", "yes", "y"}
+
+
+def _load_pretrained_model(model_cls, model_name, config):
+    if _use_pretrained_weights():
+        try:
+            return model_cls.from_pretrained(model_name, config=config)
+        except Exception as exc:
+            print(f"[WARN] Impossibile scaricare i pesi pretrained per {model_name}: {exc}. Uso inizializzazione casuale.")
+    try:
+        return model_cls.from_pretrained(model_name, config=config, local_files_only=True)
+    except Exception as exc:
+        print(f"[WARN] Pesi pretrained non presenti localmente per {model_name}: {exc}. Uso inizializzazione casuale.")
+        return model_cls(config)
+
+
+def _load_preprocessor(model_name):
+    try:
+        return ViTImageProcessor.from_pretrained(model_name, local_files_only=True)
+    except Exception as exc:
+        print(f"[WARN] Processor pretrained non trovato localmente per {model_name}: {exc}. Uso un processor di default.")
+        return ViTImageProcessor()
+
 
 # Configurazione del modello
 # RETFound è basato su ViT, quindi utilizzo la configurazione di ViT come base
 try:
     config = ViTConfig.from_pretrained("google/vit-base-patch16-224")
-    processor = ViTImageProcessor.from_pretrained('google/vit-base-patch16-224')
+    processor = _load_preprocessor('google/vit-base-patch16-224')
 except Exception:
     # Fallback configuration if HuggingFace models are unavailable
     config = ViTConfig()
@@ -22,7 +49,7 @@ class RETFoundForImageClassification(torch.nn.Module):
         super().__init__()
 
         # Load backbone (Vision Transformer as foundation model)
-        self.backbone = ViTModel.from_pretrained("google/vit-base-patch16-224")
+        self.backbone = _load_pretrained_model(ViTModel, "google/vit-base-patch16-224", config)
         
         # Load pretrained RETFound checkpoint if provided
         if pretrained_checkpoint is not None:

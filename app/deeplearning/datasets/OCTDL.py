@@ -63,12 +63,22 @@ def id2label(id, task_name='full', interest_classes=None, dataset_root=None):
 def label2id(label, task_name='full', interest_classes=None, dataset_root=None):
     task_labels = get_task_labels(task_name=task_name, interest_classes=interest_classes, dataset_root=dataset_root)
     if task_name == 'interest_vs_rest':
-        if label in interest_classes:
+        if interest_classes is not None and label in interest_classes:
             return interest_classes.index(label)
-        return len(interest_classes)
+        return len(interest_classes or [])
+
     if label in task_labels:
         return task_labels.index(label)
-    raise ValueError(f"Etichetta '{label}' non supportata per il task '{task_name}'")
+
+    if dataset_root is not None:
+        discovered_labels = _discover_available_labels(dataset_root=dataset_root)
+        if label in discovered_labels:
+            task_labels = discovered_labels
+            return task_labels.index(label)
+
+    # fallback conservativo: accetta etichette sconosciute come nuove classi
+    task_labels = list(task_labels) + [label]
+    return task_labels.index(label)
 
 def get_dataset_root():
     dataset_root = Path(PT_datasets_dir)

@@ -1,6 +1,6 @@
 import pandas as pd 
 from pathlib import Path 
-from configs.paths import PT_datasets_dir 
+from configs.paths import PT_datasets_dir, find_octdl_dataset_root 
 
 DATASET_NAME = 'OCTDL' 
 LABELS_CSV = "OCTDL_labels.csv" 
@@ -44,11 +44,20 @@ def get_dataset_root():
         dataset_root / DATASET_NAME,
         dataset_root / DATASET_NAME.lower(),
         dataset_root,
+        Path('/kaggle/input') / DATASET_NAME,
+        Path('/kaggle/input') / DATASET_NAME.lower(),
+        Path('/kaggle/input') / 'datasets' / 'obulisainaren' / 'retinal-oct-c8',
+        Path('/kaggle/input') / 'retinal-oct-c8',
+        Path('/kaggle/working') / 'retinal-oct-c8',
     ]
 
     for candidate in candidate_paths:
         if candidate.exists():
             return candidate
+
+    discovered = find_octdl_dataset_root([dataset_root, Path('/kaggle/input'), Path('/kaggle/working'), Path.cwd()])
+    if discovered is not None:
+        return discovered
 
     raise FileNotFoundError(f"Dataset root for '{DATASET_NAME}' non trovato in {PT_datasets_dir}")
 

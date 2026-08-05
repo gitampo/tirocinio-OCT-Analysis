@@ -13,6 +13,63 @@ PT_trainer_output_dir = str(app_dir / 'deeplearning/data/trainer_output/')
 PT_checkpoints_dir = str(app_dir / 'deeplearning/data/checkpoints/')
 PT_log_dir = str(app_dir / 'logs/')
 
+IMAGE_EXTENSIONS = ('.png', '.jpg', '.jpeg')
+DATASET_NAME_HINTS = ('octdl', 'retinal', 'retinal-oct', 'retinal-oct-c8', 'c8')
+
+
+def _path_has_dataset_signals(path: Path) -> bool:
+    if not path.exists() or not path.is_dir():
+        return False
+
+    if any(path.glob(f'*{ext}') for ext in IMAGE_EXTENSIONS):
+        return True
+
+    if (path / 'OCTDL_labels.csv').exists():
+        return True
+
+    return any((path / child).exists() for child in ['AMD', 'DME', 'ERM', 'NO', 'RAO', 'RVO', 'VID'])
+
+
+def find_octdl_dataset_root(search_roots=None):
+    roots = []
+    if search_roots:
+        roots.extend([Path(root) for root in search_roots if root])
+    else:
+        roots.extend([
+            Path('/kaggle/input'),
+            Path('/kaggle/working'),
+            Path.cwd(),
+            app_dir,
+        ])
+
+    for root in roots:
+        if not root.exists():
+            continue
+
+        if _path_has_dataset_signals(root):
+            return root
+
+        for child in sorted(root.iterdir()):
+            if not child.is_dir():
+                continue
+            name = child.name.lower()
+            if any(hint in name for hint in DATASET_NAME_HINTS) and _path_has_dataset_signals(child):
+                return child
+
+    for root in roots:
+        if not root.exists():
+            continue
+
+        for candidate in sorted(root.rglob('*')):
+            if not candidate.is_dir():
+                continue
+            name = candidate.name.lower()
+            if any(hint in name for hint in DATASET_NAME_HINTS) and _path_has_dataset_signals(candidate):
+                return candidate
+
+    return None
+
+
 # -------------------------
 # DATASET (KAGGLE + LOCAL)
 # -------------------------
@@ -34,8 +91,13 @@ def _resolve_default_dataset_root():
     ]
 
     for candidate in known_candidates:
-        if os.path.exists(candidate):
-            return candidate
+        candidate_path = Path(candidate)
+        if candidate_path.exists() and _path_has_dataset_signals(candidate_path):
+            return str(candidate_path)
+
+    discovered = find_octdl_dataset_root()
+    if discovered is not None:
+        return str(discovered)
 
     return str(app_dir / 'deeplearning/data/datasets/')
 

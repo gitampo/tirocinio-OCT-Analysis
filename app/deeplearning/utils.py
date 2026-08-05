@@ -11,7 +11,8 @@ from . import *
 from configs.paths import (
     PT_datasets_dir, 
     PT_checkpoints_dir, 
-    PT_trainer_output_dir
+    PT_trainer_output_dir,
+    find_octdl_dataset_root,
 )
 
 def check_valid_split(dataset_split):
@@ -39,11 +40,16 @@ def resolve_dataset_path(dataset_name):
         Path('/kaggle/input') / 'datasets' / 'obulisainaren' / 'retinal-oct-c8',
         Path('/kaggle/input') / 'retinal-oct-c8',
         Path('/kaggle/input') / 'datasets' / 'obulisainaren' / 'retinal-oct-c8' / 'retinal-oct-c8',
+        Path('/kaggle/working') / 'retinal-oct-c8',
     ]
 
     for candidate in candidate_paths:
         if candidate.exists():
             return candidate
+
+    discovered = find_octdl_dataset_root([dataset_root, Path('/kaggle/input'), Path('/kaggle/working'), Path.cwd()])
+    if discovered is not None:
+        return discovered
 
     raise ValueError(f"Dataset '{dataset_name}' non disponibile")
 

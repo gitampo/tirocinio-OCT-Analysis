@@ -10,7 +10,7 @@ from contextlib import contextmanager
 
 from utils.funs import get_available_filename
 from utils.log import log_print
-from configs.paths import PT_datasets_dir, PT_log_dir
+from configs.paths import PT_datasets_dir, PT_log_dir, find_octdl_dataset_root
 from utils.print import RST, formatted, humanized, print_info, print_separator, print_success_box, print_table
 from .training import load_training_args, set_seed
 from .datasets import OCTDL
@@ -65,6 +65,10 @@ class KFoldDataset(Dataset):
         ]:
             if candidate.exists():
                 candidate_roots.append(candidate)
+
+        discovered_root = find_octdl_dataset_root([dataset_root, Path('/kaggle/input'), Path('/kaggle/working'), Path.cwd()])
+        if discovered_root is not None and discovered_root not in candidate_roots:
+            candidate_roots.append(discovered_root)
 
         self.image_paths = []
         for candidate_root in candidate_roots:

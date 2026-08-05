@@ -146,7 +146,7 @@ def _build_splitted_dataset_from_files(dataset_path, dataset_name, task_name='fu
         examples['image'].append(str(image_path))
         if dataset_name == 'OCTDL':
             from .datasets.OCTDL import label2id
-            examples['label'].append(label2id(label_name, task_name=task_name, interest_classes=interest_classes))
+            examples['label'].append(label2id(label_name, task_name=task_name, interest_classes=interest_classes, dataset_root=dataset_path))
         else:
             examples['label'].append(label_names.index(label_name))
         examples['patient_id'].append(str(patient_id))

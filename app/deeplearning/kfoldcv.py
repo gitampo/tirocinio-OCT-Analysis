@@ -86,10 +86,10 @@ class KFoldDataset(Dataset):
                 "Verifica che il dataset sia montato correttamente o che il path sia corretto."
             )
 
-        self.task_labels = OCTDL.get_task_labels(task_name=task_name, interest_classes=interest_classes)
+        self.task_labels = OCTDL.get_task_labels(task_name=task_name, interest_classes=interest_classes, dataset_root=path_to_dataset)
 
         # elementi del dataset (etichette e pazienti corrispondenti alle immagini)
-        self.labels = [OCTDL.label2id(self.image_paths[idx].parent.name, task_name=task_name, interest_classes=interest_classes) for idx in range(len(self.image_paths))]
+        self.labels = [OCTDL.label2id(self.image_paths[idx].parent.name, task_name=task_name, interest_classes=interest_classes, dataset_root=path_to_dataset) for idx in range(len(self.image_paths))]
         self.patients = [OCTDL.get_patient_id(self.image_paths[idx].stem) for idx in range(len(self.image_paths))]
 
         # indici casuali per il rimescolamento del dataset

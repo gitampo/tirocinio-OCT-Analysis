@@ -106,12 +106,34 @@ def get_dataset_root():
     raise FileNotFoundError(f"Dataset root for '{DATASET_NAME}' non trovato in {PT_datasets_dir}")
 
 
-def get_patient_id(image_name): 
+def get_patient_id(image_name):
     dataset_root = get_dataset_root()
-    df = pd.read_csv(dataset_root / LABELS_CSV)[["file_name", "patient_id"]]
-    
-    patient_id = int(
-        df[df["file_name"] == image_name]["patient_id"].values[0]
-    )
 
-    return patient_id
+    label_csv_candidates = [
+        dataset_root / LABELS_CSV,
+        dataset_root / 'labels.csv',
+        dataset_root / 'metadata.csv',
+        dataset_root / 'OCTDL_labels.csv',
+    ]
+
+    df = None
+    for candidate in label_csv_candidates:
+        if candidate.exists():
+            try:
+                df = pd.read_csv(candidate)[["file_name", "patient_id"]]
+                break
+            except Exception:
+                continue
+
+    if df is None:
+        return 0
+
+    match = df[df["file_name"] == image_name]
+    if not match.empty:
+        return int(match["patient_id"].values[0])
+
+    stem = Path(image_name).stem
+    if stem in df["file_name"].astype(str).values:
+        return int(df.loc[df["file_name"].astype(str) == stem, "patient_id"].values[0])
+
+    return 0

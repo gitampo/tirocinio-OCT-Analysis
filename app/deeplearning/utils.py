@@ -89,7 +89,7 @@ def load_dataset_from_name(dataset_name):
     return dataset
 
 
-def _build_splitted_dataset_from_files(dataset_path, dataset_name):
+def _build_splitted_dataset_from_files(dataset_path, dataset_name, task_name='full', interest_classes=None):
     image_extensions = [".png", ".jpg", ".jpeg"]
     image_paths = []
     for ext in image_extensions:
@@ -99,9 +99,10 @@ def _build_splitted_dataset_from_files(dataset_path, dataset_name):
         raise ValueError(f"Dataset '{dataset_name}' non contiene immagini valide")
 
     if dataset_name == 'OCTDL':
-        from .datasets.OCTDL import get_patient_id, LABELS_CSV, labels as label_names
+        from .datasets.OCTDL import get_patient_id, LABELS_CSV, get_task_labels
         df_labels = pd.read_csv(dataset_path / LABELS_CSV)[["file_name", "patient_id"]]
         filename_to_patient = dict(zip(df_labels['file_name'], df_labels['patient_id'].astype(str)))
+        label_names = get_task_labels(task_name=task_name, interest_classes=interest_classes)
     elif dataset_name == 'OCT2017':
         from .datasets.OCT2017 import get_patient_id, labels as label_names
     else:
@@ -115,7 +116,10 @@ def _build_splitted_dataset_from_files(dataset_path, dataset_name):
 
     for image_path in image_paths:
         label_name = image_path.parent.name
-        if label_name not in label_names:
+        if dataset_name == 'OCTDL' and task_name == 'interest_vs_rest':
+            if label_name not in ['AMD','DME','ERM','NO','RAO','RVO','VID']:
+                raise ValueError(f"Etichetta '{label_name}' non valida per il dataset '{dataset_name}'")
+        elif label_name not in label_names:
             raise ValueError(f"Etichetta '{label_name}' non valida per il dataset '{dataset_name}'")
 
         if dataset_name == 'OCTDL':
@@ -126,7 +130,11 @@ def _build_splitted_dataset_from_files(dataset_path, dataset_name):
             patient_id = str(get_patient_id(image_path.stem))
 
         examples['image'].append(str(image_path))
-        examples['label'].append(label_names.index(label_name))
+        if dataset_name == 'OCTDL':
+            from .datasets.OCTDL import label2id
+            examples['label'].append(label2id(label_name, task_name=task_name, interest_classes=interest_classes))
+        else:
+            examples['label'].append(label_names.index(label_name))
         examples['patient_id'].append(str(patient_id))
 
     features = datasets.Features({
@@ -166,7 +174,7 @@ def _stratified_patient_split(patient_ids, patient_labels, test_size, seed):
         return perm[split:], perm[:split]
 
 
-def load_splitted_dataset_from_name(dataset_name, dataset_split, seed=DEFAULT_SEED):
+def load_splitted_dataset_from_name(dataset_name, dataset_split, seed=DEFAULT_SEED, task_name='full', interest_classes=None):
     """
     Carica il dataset con split a livello di paziente (anti-leakage).
     
@@ -184,7 +192,7 @@ def load_splitted_dataset_from_name(dataset_name, dataset_split, seed=DEFAULT_SE
     dataset_path = resolve_dataset_path(dataset_name)
     train_sz, eval_sz, test_sz = dataset_split
 
-    dataset = _build_splitted_dataset_from_files(dataset_path, dataset_name)
+    dataset = _build_splitted_dataset_from_files(dataset_path, dataset_name, task_name=task_name, interest_classes=interest_classes)
 
     # raggruppa per patient_id
     patient_indices = {}

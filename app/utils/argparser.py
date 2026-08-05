@@ -98,6 +98,21 @@ def setup_train_parser(subparsers):
         type=int,
         help=help(f'Specifica il seed da utilizzare nel training, a scopo di riproducibilità. \n(default: {DEFAULT_SEED})')
     )
+    train_parser.add_argument(
+        '--task',
+        action='store',
+        metavar='TASK',
+        default='full',
+        choices=['full', 'interest_vs_rest'],
+        help=help('Seleziona il task da usare: full (tutte le classi) o interest_vs_rest (classi d\'interesse + ALL_REST).')
+    )
+    train_parser.add_argument(
+        '--interest-classes',
+        action='store',
+        metavar='CLASSES',
+        default=None,
+        help=help('Classi d\'interesse per il task interest_vs_rest, separate da virgola (es. AMD,DME).')
+    )
 
 def setup_test_parser(subparsers):
     # costruzione del comando test
@@ -136,6 +151,63 @@ def setup_test_parser(subparsers):
     )
     test_parser.add_argument(
         '-S','--seed',
+        action='store',
+        metavar='SEED',
+        default=DEFAULT_SEED,
+        type=int,
+        help=help(f'Specifica il seed da utilizzare nel testing, a scopo di riproducibilità. \n(default: {DEFAULT_SEED})')
+    )
+    test_parser.add_argument(
+        '--task',
+        action='store',
+        metavar='TASK',
+        default='full',
+        choices=['full', 'interest_vs_rest'],
+        help=help('Seleziona il task da usare: full (tutte le classi) o interest_vs_rest (classi d\'interesse + ALL_REST).')
+    )
+    test_parser.add_argument(
+        '--interest-classes',
+        action='store',
+        metavar='CLASSES',
+        default=None,
+        help=help('Classi d\'interesse per il task interest_vs_rest, separate da virgola (es. AMD,DME).')
+    )
+
+def setup_test_external_parser(subparsers):
+    # costruzione del comando test-external
+    test_external_parser = subparsers.add_parser(
+        'test-external',
+        description=description("Comando per il testing finale su dataset esterno"),
+        help=help("Comando per il testing finale su dataset esterno"),
+        formatter_class=help_formatter,
+        epilog=epilog([(f"python {PROG} test-external -c vitmae-light/base -p C:/datasets/OCT_EXTERNAL", "Testing su dataset esterno")]),
+        add_help=False)
+
+    # help del comando test-external
+    test_external_parser.add_argument(
+        '-h', '--help',
+        action='help',
+        help=help('Mostra questo messaggio di help.')
+    )
+
+    # costruzione degli argomenti del comando test-external
+    test_external_parser.add_argument(
+        '-c', '--checkpoint',
+        required=True,
+        action='store',
+        metavar='CHECKPOINT',
+        choices=available_checkpoints(),
+        help=help('Carica il checkpoint da valutare. \n(vedi anche "list --checkpoints")')
+    )
+    test_external_parser.add_argument(
+        '-p', '--dataset-path',
+        required=True,
+        action='store',
+        metavar='PATH',
+        help=help('Percorso del dataset esterno con struttura imagefolder (una cartella per classe).')
+    )
+    test_external_parser.add_argument(
+        '-S', '--seed',
         action='store',
         metavar='SEED',
         default=DEFAULT_SEED,
@@ -184,6 +256,31 @@ def setup_kfoldcv_parser(subparsers):
         default=DEFAULT_SEED,
         type=int,
         help=help(f'Specifica il seed da utilizzare nel K-Fold Cross Validation, a scopo di riproducibilità. \n(default: {DEFAULT_SEED})')
+    )
+    kfoldcv_parser.add_argument(
+        '--no-augmentation',
+        action='store_true',
+        help=help('Disabilita la data augmentation in training (baseline senza augmentation).')
+    )
+    kfoldcv_parser.add_argument(
+        '--oversample-rare',
+        action='store_true',
+        help=help('Abilita l\'oversampling delle classi rare nel training set di ogni fold.')
+    )
+    kfoldcv_parser.add_argument(
+        '--task',
+        action='store',
+        metavar='TASK',
+        default='full',
+        choices=['full', 'interest_vs_rest'],
+        help=help('Seleziona il task da usare: full (tutte le classi) o interest_vs_rest (classi d\'interesse + ALL_REST).')
+    )
+    kfoldcv_parser.add_argument(
+        '--interest-classes',
+        action='store',
+        metavar='CLASSES',
+        default=None,
+        help=help('Classi d\'interesse per il task interest_vs_rest, separate da virgola (es. AMD,DME).')
     )
 
 def setup_list_parser(subparsers):
@@ -238,6 +335,7 @@ def get_args():
     # setup dei comandi
     setup_train_parser(subparsers)
     setup_test_parser(subparsers)
+    setup_test_external_parser(subparsers)
     setup_kfoldcv_parser(subparsers)
     setup_list_parser(subparsers)
 
@@ -252,16 +350,25 @@ def check_model_and_checkpoint(args):
     if args.model != args.load.split('/')[0]:
         raise ValueError(f"Il modello '{args.model}' non corrisponde al checkpoint '{args.load}'")
 
+def _parse_interest_classes(value):
+    if value is None:
+        return None
+    return [item.strip() for item in value.split(',') if item.strip()]
+
+
 def handle_args(args):
 
     # gestisce il comando di training
     if args.command == 'train':
+        interest_classes = _parse_interest_classes(getattr(args, 'interest_classes', None))
         # training da zero
         if args.from_scratch:
             from deeplearning.training import train # lazy loading
             train(model_name=args.from_scratch,
                   dataset_name=args.dataset or DEFAULT_DATASET,
-                  from_scratch=True)
+                  from_scratch=True,
+                  task_name=args.task,
+                  interest_classes=interest_classes)
             
         # training da checkpoint
         elif args.from_checkpoint:
@@ -272,25 +379,45 @@ def handle_args(args):
                   checkpoint_name=checkpoint_name,
                   dataset_name=args.dataset,
                   seed=args.seed,
-                  from_scratch=False)
+                  from_scratch=False,
+                  task_name=args.task,
+                  interest_classes=interest_classes)
             
     # gestisce il comando di testing
     elif args.command == 'test':
         from deeplearning.testing import test # lazy loading
 
+        interest_classes = _parse_interest_classes(getattr(args, 'interest_classes', None))
         model_name, checkpoint_name = args.checkpoint.split('/') # <model/checkpoint>
         test(model_name=model_name,
               checkpoint_name=checkpoint_name,
               dataset_name=args.dataset,
-              seed=args.seed)
+              seed=args.seed,
+              task_name=args.task,
+              interest_classes=interest_classes)
+
+    # gestisce il comando di testing su dataset esterno
+    elif args.command == 'test-external':
+        from deeplearning.testing import test_external # lazy loading
+
+        model_name, checkpoint_name = args.checkpoint.split('/') # <model/checkpoint>
+        test_external(model_name=model_name,
+                      checkpoint_name=checkpoint_name,
+                      dataset_path=args.dataset_path,
+                      seed=args.seed)
 
     # gestisce il comando di kfoldcv
     elif args.command == 'kfoldcv':
         from deeplearning.kfoldcv import kfold_cv # lazy loading
 
+        interest_classes = _parse_interest_classes(getattr(args, 'interest_classes', None))
         kfold_cv(model_name=args.model,
                   seed=args.seed,
-                  num_folds=args.num_folds)
+                  num_folds=args.num_folds,
+                  use_augmentation=not args.no_augmentation,
+                  oversample_rare=args.oversample_rare,
+                  task_name=args.task,
+                  interest_classes=interest_classes)
 
     # gestisce il comando di listing
     elif args.command == 'list':

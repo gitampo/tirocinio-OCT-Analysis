@@ -16,6 +16,7 @@ from . import (
     TRAIN_BATCH_SIZE
 )
 from .model_factory import get_train_preprocessor, load_model
+from .datasets import OCTDL
 from .testing import compute_metrics_for_test
 from configs.paths import PT_checkpoints_dir, PT_trainer_output_dir
 from utils.print import (
@@ -52,10 +53,12 @@ def load_training_args():
     )
 
 
-def save_experiment_metadata(model_name, training_args):
+def save_experiment_metadata(model_name, training_args, task_name='full', interest_classes=None):
     metadata = {
         "model_name": model_name,
         "seed": training_args.seed,
+        "task_name": task_name,
+        "interest_classes": interest_classes,
         "training_args": training_args.to_dict(),
         "torch_version": torch.__version__,
         "transformers_version": __import__("transformers").__version__,
@@ -114,13 +117,15 @@ def ask_checkpoint_name(model_name):
 
     return new_checkpoint_name, new_checkpoint_path, wants_to_overwrite
 
-def load_for_train(model_name, checkpoint_name, dataset_name, dataset_split, from_scratch, seed=DEFAULT_SEED):
+def load_for_train(model_name, checkpoint_name, dataset_name, dataset_split, from_scratch, seed=DEFAULT_SEED, task_name='full', interest_classes=None):
+    task_labels = OCTDL.get_task_labels(task_name=task_name, interest_classes=interest_classes)
+
     # caricamento del modello e degli argomenti di training
-    model = load_model(model_name)
+    model = load_model(model_name, num_labels=len(task_labels))
 
     # caricamento degli argomenti di training
     training_args = load_training_args()
-    save_experiment_metadata(model_name, training_args)
+    save_experiment_metadata(model_name, training_args, task_name=task_name, interest_classes=interest_classes)
     train_preprocessor = get_train_preprocessor(model_name)
 
     # caricamento del checkpoint
@@ -135,7 +140,7 @@ def load_for_train(model_name, checkpoint_name, dataset_name, dataset_split, fro
 
     # caricamento del dataset
     print_info(f"Caricamento del dataset '{dataset_name}'...")
-    dataset = load_splitted_dataset_from_name(dataset_name, dataset_split, seed)
+    dataset = load_splitted_dataset_from_name(dataset_name, dataset_split, seed, task_name=task_name, interest_classes=interest_classes)
 
     # preprocessing dei dati
     print_info("Preprocessing dei dati...")
@@ -163,7 +168,7 @@ def load_for_train(model_name, checkpoint_name, dataset_name, dataset_split, fro
 
     return model, training_args, dataset
 
-def train(model_name, checkpoint_name=None, dataset_name=DEFAULT_DATASET, dataset_split=DEFAULT_SPLIT, seed=DEFAULT_SEED, from_scratch=True):
+def train(model_name, checkpoint_name=None, dataset_name=DEFAULT_DATASET, dataset_split=DEFAULT_SPLIT, seed=DEFAULT_SEED, from_scratch=True, task_name='full', interest_classes=None):
 
     # impostazione del seed per riproducibilità
     set_seed(seed)
@@ -171,7 +176,7 @@ def train(model_name, checkpoint_name=None, dataset_name=DEFAULT_DATASET, datase
     # caricamento del modello, degli argomenti di training e del dataset
     model,         \
     training_args, \
-    dataset = load_for_train(model_name, checkpoint_name, dataset_name, dataset_split, from_scratch, seed)
+    dataset = load_for_train(model_name, checkpoint_name, dataset_name, dataset_split, from_scratch, seed, task_name=task_name, interest_classes=interest_classes)
 
     # funzione per il calcolo delle metriche di valutazione
     def compute_metrics_for_eval(eval_pred):

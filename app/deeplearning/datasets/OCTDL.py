@@ -6,11 +6,37 @@ DATASET_NAME = 'OCTDL'
 LABELS_CSV = "OCTDL_labels.csv" 
 labels = ['AMD','DME','ERM','NO','RAO','RVO','VID'] # l'ordine è importante 
 
-def id2label(id): 
-    return labels[id]
+
+def get_task_labels(task_name='full', interest_classes=None):
+    if task_name == 'full':
+        return list(labels)
+
+    if task_name == 'interest_vs_rest':
+        if not interest_classes:
+            raise ValueError("Per il task 'interest_vs_rest' servono le classi d'interesse")
+
+        interest_classes = [str(class_name) for class_name in interest_classes]
+        invalid_classes = [class_name for class_name in interest_classes if class_name not in labels]
+        if invalid_classes:
+            raise ValueError(f"Classi d'interesse non valide: {invalid_classes}")
+
+        return interest_classes + ['ALL_REST']
+
+    raise ValueError(f"Task '{task_name}' non supportato")
+
+
+def id2label(id, task_name='full', interest_classes=None):
+    return get_task_labels(task_name=task_name, interest_classes=interest_classes)[id]
  
-def label2id(label): 
-    return labels.index(label) 
+def label2id(label, task_name='full', interest_classes=None):
+    task_labels = get_task_labels(task_name=task_name, interest_classes=interest_classes)
+    if task_name == 'interest_vs_rest':
+        if label in interest_classes:
+            return interest_classes.index(label)
+        if label in labels:
+            return len(interest_classes)
+        raise ValueError(f"Etichetta '{label}' non supportata per il task '{task_name}'")
+    return task_labels.index(label) 
 
 def get_dataset_root():
     dataset_root = Path(PT_datasets_dir)

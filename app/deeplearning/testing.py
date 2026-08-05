@@ -1,4 +1,6 @@
 import numpy as np
+from pathlib import Path
+import datasets
 from sklearn.metrics import (
     accuracy_score, 
     balanced_accuracy_score,
@@ -24,6 +26,7 @@ from .model_factory import (
     load_model, 
     get_preprocessor, 
 )
+from .datasets import OCTDL
 from utils.print import (
     humanized,
     formatted,
@@ -125,9 +128,11 @@ def compute_metrics_for_test(eval_pred):
     }
     return computed_metrics
 
-def load_for_test(model_name, checkpoint_name, dataset_name, dataset_split, seed=DEFAULT_SEED):
+def load_for_test(model_name, checkpoint_name, dataset_name, dataset_split, seed=DEFAULT_SEED, task_name='full', interest_classes=None):
+    task_labels = OCTDL.get_task_labels(task_name=task_name, interest_classes=interest_classes)
+
     # caricamento del modello e del preprocess
-    model = load_model(model_name)
+    model = load_model(model_name, num_labels=len(task_labels))
     preprocessor = get_preprocessor(model_name)
 
     # caricamento del checkpoint
@@ -137,7 +142,7 @@ def load_for_test(model_name, checkpoint_name, dataset_name, dataset_split, seed
 
     # caricamento del dataset
     print_info(f"Caricamento del dataset '{dataset_name}'...")
-    dataset = load_splitted_dataset_from_name(dataset_name, dataset_split, DEFAULT_SEED)
+    dataset = load_splitted_dataset_from_name(dataset_name, dataset_split, DEFAULT_SEED, task_name=task_name, interest_classes=interest_classes)
 
     # preprocessing dei dati
     print_info("Preprocessing dei dati...")
@@ -223,7 +228,7 @@ def print_results(output, labels):
     # stampa della tabella delle statistiche
     print_table(headings=["STATISTICA", "VALORE"], rows=stats_rows)
 
-def test(model_name, checkpoint_name, dataset_name=DEFAULT_DATASET, dataset_split=DEFAULT_SPLIT, seed=DEFAULT_SEED):
+def test(model_name, checkpoint_name, dataset_name=DEFAULT_DATASET, dataset_split=DEFAULT_SPLIT, seed=DEFAULT_SEED, task_name='full', interest_classes=None):
     import tempfile
 
     # impostazione del seed per riproducibilità
@@ -231,7 +236,7 @@ def test(model_name, checkpoint_name, dataset_name=DEFAULT_DATASET, dataset_spli
 
     # caricamento del modello e del dataset
     model, dataset, labels = load_for_test(model_name, checkpoint_name,
-                                           dataset_name, dataset_split, seed)
+                                           dataset_name, dataset_split, seed, task_name=task_name, interest_classes=interest_classes)
 
     # creazione del trainer
     trainer = Trainer(
@@ -250,4 +255,61 @@ def test(model_name, checkpoint_name, dataset_name=DEFAULT_DATASET, dataset_spli
     print_success_box("Testing completato!")
 
     # stampa dei risultati
+    print_results(output, labels)
+
+def load_for_test_external(model_name, checkpoint_name, dataset_path):
+    # caricamento del modello e del preprocess
+    model = load_model(model_name)
+    preprocessor = get_preprocessor(model_name)
+
+    # caricamento del checkpoint
+    print_info(f"Caricamento del checkpoint '{checkpoint_name}' per il modello '{model_name}'...")
+    checkpoint = get_checkpoint_path(model_name, checkpoint_name)
+    model.load_state_dict(torch.load(checkpoint, weights_only=True, map_location=torch.device('cpu')))
+
+    dataset_path = Path(dataset_path)
+    if not dataset_path.exists():
+        raise ValueError(f"Dataset esterno non trovato: {dataset_path}")
+
+    # imagefolder crea lo split 'train' se non esistono split fisici
+    print_info(f"Caricamento dataset esterno da '{dataset_path}'...")
+    dataset = datasets.load_dataset("imagefolder", data_dir=str(dataset_path))
+    if 'train' not in dataset:
+        raise ValueError("Dataset esterno non valido: split 'train' assente")
+
+    # preprocessing del solo split usato per il test
+    print_info("Preprocessing dei dati esterni...")
+    dataset['train'] = dataset['train'].map(
+        preprocessor,
+        batched=True,
+        batch_size=PREPROCESS_BATCH_SIZE,
+        num_proc=0,
+        remove_columns=['image']
+    )
+
+    labels = dataset['train'].features['label'].names
+    return model, dataset['train'], labels
+
+def test_external(model_name, checkpoint_name, dataset_path, seed=DEFAULT_SEED):
+    import tempfile
+
+    # impostazione del seed per riproducibilità
+    set_seed(seed)
+
+    # caricamento del modello e del dataset esterno
+    model, test_dataset, labels = load_for_test_external(model_name, checkpoint_name, dataset_path)
+
+    trainer = Trainer(
+        model=model,
+        args=TrainingArguments(
+            output_dir=tempfile.mkdtemp(),
+            per_device_eval_batch_size=TEST_BATCH_SIZE,
+            do_train=False,
+            do_eval=True),
+        compute_metrics=compute_metrics_for_test,
+    )
+
+    print_info("Inizio del testing su dataset esterno...")
+    output = trainer.evaluate(test_dataset)
+    print_success_box("Testing su dataset esterno completato!")
     print_results(output, labels)

@@ -82,9 +82,15 @@ def check_model_available(wrapped):
     return wrapper
 
 @check_model_available
-def load_model(model_name):
+def load_model(model_name, num_labels=None):
     # caricamento del modello
-    model = _model_classes[model_name]()
+    if model_name in ['resnet18', 'resnet50', 'densenet121', 'efficientnet_b0']:
+        return CNN.CNNForImageClassification(variant=model_name, num_labels=num_labels or 7)
+
+    if num_labels is None:
+        model = _model_classes[model_name]()
+    else:
+        model = _model_classes[model_name](num_labels=num_labels)
     return model
 
 @check_model_available

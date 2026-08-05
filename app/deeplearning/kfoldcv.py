@@ -29,7 +29,7 @@ from .model_factory import (
 from . import DEFAULT_KFOLDS, DEFAULT_SEED, TEST_BATCH_SIZE
 
 class KFoldDataset(Dataset):
-    def __init__(self, model_name, seed=DEFAULT_SEED):
+    def __init__(self, model_name, seed=DEFAULT_SEED, use_augmentation=True, task_name='full', interest_classes=None):
         dataset_root = Path(PT_datasets_dir.strip())
         candidate_dataset_path = dataset_root / OCTDL.DATASET_NAME
 
@@ -41,7 +41,7 @@ class KFoldDataset(Dataset):
         # ottiene il preprocessore delle immagini
         self.preprocessor = get_preprocessor(model_name)
         self.augmenter = get_augmenter(model_name)
-        self.augmentation_enabled = True # per abilitare/disabilitare l'augmentation
+        self.augmentation_enabled = use_augmentation # per abilitare/disabilitare l'augmentation
 
         parent_path = dataset_root
         
@@ -62,8 +62,10 @@ class KFoldDataset(Dataset):
         if not self.image_paths:
             raise ValueError(f"Nessuna immagine trovata in {path_to_dataset}\nVerifica che il dataset sia presente e contenga file .png, .jpg o .jpeg")
 
+        self.task_labels = OCTDL.get_task_labels(task_name=task_name, interest_classes=interest_classes)
+
         # elementi del dataset (etichette e pazienti corrispondenti alle immagini)
-        self.labels = [OCTDL.label2id(self.image_paths[idx].parent.name) for idx in range(len(self.image_paths))]
+        self.labels = [OCTDL.label2id(self.image_paths[idx].parent.name, task_name=task_name, interest_classes=interest_classes) for idx in range(len(self.image_paths))]
         self.patients = [OCTDL.get_patient_id(self.image_paths[idx].stem) for idx in range(len(self.image_paths))]
 
         # indici casuali per il rimescolamento del dataset
@@ -102,27 +104,32 @@ class KFoldDataset(Dataset):
     @contextmanager
     def eval_mode(self):
         # Codice eseguito all'ingresso del blocco 'with'
+        previous_mode = self.augmentation_enabled
         self.augmentation_enabled = False
         try:
             yield  # esecuzione del blocco 'with'
         finally:
             # Codice eseguito all'uscita dal blocco 'with', anche in caso di eccezioni
-            self.augmentation_enabled = True
+            self.augmentation_enabled = previous_mode
 
 class KFoldModelWrapper():
-    def __init__(self, model_name):
+    def __init__(self, model_name, task_name='full', interest_classes=None):
         self.model_name = model_name
         self.model = None
+        self.task_name = task_name
+        self.interest_classes = interest_classes
 
     def fit(self, train_dataset):
 
+        task_labels = OCTDL.get_task_labels(task_name=self.task_name, interest_classes=self.interest_classes)
+
         # caricamento del modello
-        self.model = load_model(self.model_name)
+        self.model = load_model(self.model_name, num_labels=len(task_labels))
 
         # Adatto il modello CNN al numero di labels corretto
         is_cnn_model = self.model_name in ['resnet18', 'resnet50', 'densenet121', 'efficientnet_b0']
         if is_cnn_model:
-            num_labels = len(OCTDL.labels)
+            num_labels = len(task_labels)
             # Sostituisci l'ultimo layer con il numero di labels corretto
             if hasattr(self.model, 'classifier'):
                 old_classifier = self.model.classifier
@@ -175,7 +182,7 @@ class KFoldModelWrapper():
 
         # Calcola pesi di classe per gestire il dataset sbilanciato
         train_labels = np.array(train_dataset.dataset.labels)[train_dataset.indices]
-        class_counts = np.bincount(train_labels, minlength=len(OCTDL.labels))
+        class_counts = np.bincount(train_labels, minlength=len(OCTDL.get_task_labels(task_name=self.task_name, interest_classes=self.interest_classes)))
         class_weights = 1.0 / (class_counts + 1e-12)
         class_weights = torch.tensor(class_weights, dtype=torch.float32, device=device)
 
@@ -303,7 +310,42 @@ class KFoldModelWrapper():
 
         return output
 
-def preprocess_final_results(outputs, classes_outputs):
+def _compute_subset_class_counts(dataset, subset):
+    labels = np.array(dataset.labels)[subset.indices]
+    return np.bincount(labels, minlength=len(OCTDL.labels))
+
+def _build_oversampled_subset(dataset, subset, seed=DEFAULT_SEED):
+    """
+    Esegue random oversampling del subset fino a portare ogni classe
+    alla numerosità della classe più frequente del fold.
+    """
+    rng = np.random.default_rng(seed)
+
+    indices = np.array(subset.indices)
+    labels = np.array(dataset.labels)[indices]
+    class_to_indices = {
+        class_id: indices[labels == class_id]
+        for class_id in range(len(dataset.task_labels))
+    }
+
+    class_counts = {class_id: len(class_indices) for class_id, class_indices in class_to_indices.items()}
+    max_count = max(class_counts.values()) if class_counts else 0
+
+    oversampled_indices = []
+    for class_id, class_indices in class_to_indices.items():
+        if len(class_indices) == 0:
+            continue
+
+        oversampled_indices.extend(class_indices.tolist())
+        missing = max_count - len(class_indices)
+        if missing > 0:
+            sampled = rng.choice(class_indices, size=missing, replace=True)
+            oversampled_indices.extend(sampled.tolist())
+
+    rng.shuffle(oversampled_indices)
+    return Subset(dataset, oversampled_indices)
+
+def preprocess_final_results(outputs, classes_outputs, task_labels):
 
     # calcolo della media delle metriche sui vari fold
     averaged_metrics = []
@@ -332,8 +374,8 @@ def preprocess_final_results(outputs, classes_outputs):
         dev_stds = []
         for label in OCTDL.labels:
             # calcolo di media e deviazione standard per la metrica e per la classe corrente
-            mean = np.mean([class_output[key][OCTDL.label2id(label)] for class_output in classes_outputs]).item()
-            dev_std = np.std([class_output[key][OCTDL.label2id(label)] for class_output in classes_outputs]).item()
+            mean = np.mean([class_output[key][task_labels.index(label)] for class_output in classes_outputs]).item()
+            dev_std = np.std([class_output[key][task_labels.index(label)] for class_output in classes_outputs]).item()
 
             # medie e deviazioni standard per ogni classe
             means.append(formatted(mean, metrics_formats[metric_name]))
@@ -347,12 +389,12 @@ def preprocess_final_results(outputs, classes_outputs):
 
     return sorted(averaged_metrics), sorted(averaged_classes_metrics)
 
-def print_final_results(outputs, classes_outputs):
+def print_final_results(outputs, classes_outputs, task_labels):
 
     # preprocessing dei risultati (formattazione e cambio rappresentazione) e stampa
-    metrics_rows, classes_rows = preprocess_final_results(outputs, classes_outputs)
+    metrics_rows, classes_rows = preprocess_final_results(outputs, classes_outputs, task_labels)
     print_table(headings=["METRICA", "VALORE MEDIO", "DEV.STD."], rows=metrics_rows)
-    print_table(headings=["", *OCTDL.labels], rows=classes_rows)
+    print_table(headings=["", *task_labels], rows=classes_rows)
 
 def print_class_distribution_per_fold(gkf, dataset):
     from functools import reduce
@@ -368,7 +410,7 @@ def print_class_distribution_per_fold(gkf, dataset):
         # funzione per contare le occorrenze delle classi nel dataset
         def count_occurrences(label, fold_dataset):
             labels = [dataset.labels[i] for i in fold_dataset.indices]
-            value = reduce(lambda acc, x: acc + (1 if x == OCTDL.label2id(label) else 0), labels, 0)
+            value = reduce(lambda acc, x: acc + (1 if x == dataset.task_labels.index(label) else 0), labels, 0)
             return  value
 
         # calcolo della distribuzione delle classi per il fold attuale
@@ -384,17 +426,17 @@ def print_class_distribution_per_fold(gkf, dataset):
         total = lambda l : reduce(lambda acc, x: acc + x, l, 0)
         folds_distributions.append((f"fold {fold_idx} - train", *[format_str(count) for count in train_counts], "="+format_str(total(train_counts))))
         folds_distributions.append((f"fold {fold_idx} - val", *[format_str(count) for count in val_counts], "="+format_str(total(val_counts))))
-        folds_distributions.append((*['' for _ in range(len(OCTDL.labels)+2)],)) # riga vuota
+        folds_distributions.append((*['' for _ in range(len(dataset.task_labels)+2)],)) # riga vuota
 
     # stampa della distribuzione delle classi per ogni fold
-    print_table(headings=["", *OCTDL.labels, ""], rows=folds_distributions)
+    print_table(headings=["", *dataset.task_labels, ""], rows=folds_distributions)
 
-def kfold_cv(model_name, num_folds=DEFAULT_KFOLDS, seed=DEFAULT_SEED):
+def kfold_cv(model_name, num_folds=DEFAULT_KFOLDS, seed=DEFAULT_SEED, use_augmentation=True, oversample_rare=False, task_name='full', interest_classes=None):
     # impostazione del seed per la ripoducibilità
     set_seed(seed)
 
     # caricamento del dataset per la K-fold cross validation (Dataset custom)
-    dataset = KFoldDataset(model_name, seed=seed)
+    dataset = KFoldDataset(model_name, seed=seed, use_augmentation=use_augmentation, task_name=task_name, interest_classes=interest_classes)
 
     # istanziazione delle K-fold (StratifiedGroupKFold per mantenere le classi bilanciate
     # tra i fold e evitare data leakage tra pazienti)
@@ -411,7 +453,11 @@ def kfold_cv(model_name, num_folds=DEFAULT_KFOLDS, seed=DEFAULT_SEED):
               f"MODEL: {model_name}           \n"
               f"KFOLDS: {num_folds}           \n"
               f"SEED: {seed}                  \n"
-              f"DATASET: {OCTDL.DATASET_NAME} \n")
+              f"DATASET: {OCTDL.DATASET_NAME} \n"
+              f"TASK: {task_name} \n"
+              f"INTEREST_CLASSES: {interest_classes or []} \n"
+              f"AUGMENTATION: {use_augmentation} \n"
+              f"OVERSAMPLE_RARE: {oversample_rare} \n")
 
     # K-fold cross validation 
     fold_idx = 1
@@ -425,8 +471,20 @@ def kfold_cv(model_name, num_folds=DEFAULT_KFOLDS, seed=DEFAULT_SEED):
         fold_dataset_train = Subset(dataset, train_idx)
         fold_dataset_val = Subset(dataset, val_idx)
 
+        # opzionale: oversampling delle classi rare nel train fold
+        if oversample_rare:
+            before_counts = _compute_subset_class_counts(dataset, fold_dataset_train)
+            fold_dataset_train = _build_oversampled_subset(dataset, fold_dataset_train, seed=seed + fold_idx)
+            after_counts = _compute_subset_class_counts(dataset, fold_dataset_train)
+
+            rows = []
+            for class_id, class_name in enumerate(OCTDL.labels):
+                rows.append((class_name, int(before_counts[class_id]), int(after_counts[class_id])))
+
+            print_table(headings=["CLASSE", "TRAIN PRIMA", "TRAIN DOPO"], rows=rows)
+
         # addestramento (fit per il fold attuale)
-        model = KFoldModelWrapper(model_name)
+        model = KFoldModelWrapper(model_name, task_name=task_name, interest_classes=interest_classes)
         model.fit(fold_dataset_train)
 
         # valutazione (disabilita l'augmentation durante la valutazione)
@@ -434,7 +492,7 @@ def kfold_cv(model_name, num_folds=DEFAULT_KFOLDS, seed=DEFAULT_SEED):
             output = model.score(fold_dataset_val)
 
         # risultati del fold
-        print_results(output, labels=OCTDL.labels)
+        print_results(output, labels=dataset.task_labels)
         log_print(log_filestem, f"Risultati del fold {fold_idx}: {output}")
         print_separator(70)
 

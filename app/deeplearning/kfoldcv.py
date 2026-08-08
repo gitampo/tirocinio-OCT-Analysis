@@ -341,7 +341,7 @@ class KFoldModelWrapper():
 
 def _compute_subset_class_counts(dataset, subset):
     labels = np.array(dataset.labels)[subset.indices]
-    return np.bincount(labels, minlength=len(OCTDL.labels))
+    return np.bincount(labels, minlength=len(dataset.task_labels))
 
 def _build_oversampled_subset(dataset, subset, seed=DEFAULT_SEED):
     """
@@ -401,7 +401,7 @@ def preprocess_final_results(outputs, classes_outputs, task_labels):
 
         means = []
         dev_stds = []
-        for label in OCTDL.labels:
+        for label in task_labels:
             # calcolo di media e deviazione standard per la metrica e per la classe corrente
             mean = np.mean([class_output[key][task_labels.index(label)] for class_output in classes_outputs]).item()
             dev_std = np.std([class_output[key][task_labels.index(label)] for class_output in classes_outputs]).item()
@@ -445,7 +445,7 @@ def print_class_distribution_per_fold(gkf, dataset):
         # calcolo della distribuzione delle classi per il fold attuale
         train_counts = []
         val_counts = []
-        for label in OCTDL.labels:
+        for label in dataset.task_labels:
             # memorizzazione dei conteggi di ciascuna classe per il fold attuale
             train_counts.append(count_occurrences(label, fold_dataset_train))
             val_counts.append(count_occurrences(label, fold_dataset_val))
@@ -507,7 +507,7 @@ def kfold_cv(model_name, num_folds=DEFAULT_KFOLDS, seed=DEFAULT_SEED, use_augmen
             after_counts = _compute_subset_class_counts(dataset, fold_dataset_train)
 
             rows = []
-            for class_id, class_name in enumerate(OCTDL.labels):
+            for class_id, class_name in enumerate(dataset.task_labels):
                 rows.append((class_name, int(before_counts[class_id]), int(after_counts[class_id])))
 
             print_table(headings=["CLASSE", "TRAIN PRIMA", "TRAIN DOPO"], rows=rows)

@@ -541,4 +541,4 @@ def kfold_cv(model_name, num_folds=DEFAULT_KFOLDS, seed=DEFAULT_SEED, use_augmen
     # stampa della media e della deviazione standard delle metriche
     print_success_box(f"K-Fold Cross Validation ({num_folds} folds) completata!")
     log_print(log_filestem, f"Risultati finali: {outputs}")
-    print_final_results(outputs, classes_outputs)
+    print_final_results(outputs, classes_outputs, dataset.task_labels)

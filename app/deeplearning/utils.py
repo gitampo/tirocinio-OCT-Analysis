@@ -7,7 +7,7 @@ import random
 import torch
 from sklearn.model_selection import StratifiedShuffleSplit
 
-from . import *
+from . import DEFAULT_SEED
 from configs.paths import (
     PT_datasets_dir, 
     PT_checkpoints_dir, 

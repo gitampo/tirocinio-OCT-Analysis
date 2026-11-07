@@ -60,9 +60,10 @@ def specificity_score(y_true, y_pred, average='macro'):
     return np.mean(specificity_values)
 
 
-def classes_mcc_score(y_true, y_pred):
+def classes_mcc_score(y_true, y_pred, labels=None):
     """Calcola MCC per ciascuna classe (one-vs-rest)."""
-    labels = np.unique(np.concatenate([y_true, y_pred]))
+    if labels is None:
+        labels = np.unique(np.concatenate([y_true, y_pred]))
     mcc_values = []
     for label in labels:
         y_true_bin = (y_true == label).astype(int)
@@ -105,8 +106,12 @@ def compute_metrics_for_test(eval_pred):
 
     # funzione di calcolo di una singola metrica
     def compute_metric(metric, labels, preds):
-        global metrics
-        return metrics[metric]["fun"](labels, preds, **metrics[metric]["kwargs"])
+            global metrics
+            kwargs = dict(metrics[metric]["kwargs"])
+            # metriche per classe e matrice di confusione allineate a tutte le classi, anche se assenti
+            if metric.startswith("classes_") or metric == "confusion_matrix":
+                kwargs["labels"] = np.arange(logits.shape[-1])
+            return metrics[metric]["fun"](labels, preds, **kwargs)
 
     # calcolo delle predizioni
     logits, labels = eval_pred

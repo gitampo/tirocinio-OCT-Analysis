@@ -7,9 +7,12 @@ from pathlib import Path
 from PIL import Image
 from sklearn.model_selection import StratifiedGroupKFold
 from contextlib import contextmanager
+from torchvision import transforms
+
 
 from utils.funs import get_available_filename
 from utils.log import log_print
+from configs.paths import PT_datasets_dir, PT_log_dir, PT_trainer_output_dir, find_octdl_dataset_root
 from configs.paths import PT_datasets_dir, PT_log_dir, find_octdl_dataset_root
 from utils.print import RST, formatted, humanized, print_info, print_separator, print_success_box, print_table
 from .training import load_training_args, set_seed
@@ -28,6 +31,84 @@ from .model_factory import (
 )
 from . import DEFAULT_KFOLDS, DEFAULT_SEED, TEST_BATCH_SIZE
 
+
+# ----------------------------------------------------------------------------
+# Protocollo comune di training per tutti i modelli
+# ----------------------------------------------------------------------------
+SEED_SPLIT = 42        # i fold non cambiano tra modelli ne' tra seed di training
+EPOCHE = 20
+LEARNING_RATE = 5e-5
+
+_trasformazione_comune = transforms.Compose([
+    transforms.RandomHorizontalFlip(),
+    transforms.RandomRotation(10),
+])
+
+
+def augment_comune(examples):
+    # stessa augmentation per tutti i modelli (niente flip verticale)
+    examples["image"] = [_trasformazione_comune(image.convert("RGB")) for image in examples["image"]]
+    return examples
+
+
+def pesi_classi(labels, num_classes):
+    # pesi "balanced": n_campioni / (n_classi * conteggio_classe)
+    conteggi = np.bincount(labels, minlength=num_classes)
+    return torch.tensor(len(labels) / (num_classes * np.maximum(conteggi, 1)), dtype=torch.float32)
+
+
+def argomenti_training(seed, output_dir):
+    return TrainingArguments(
+        output_dir=output_dir,
+        per_device_train_batch_size=TRAIN_BATCH_SIZE,
+        per_device_eval_batch_size=TEST_BATCH_SIZE,
+        num_train_epochs=EPOCHE,
+        learning_rate=LEARNING_RATE,
+        lr_scheduler_type="cosine_with_restarts",
+        warmup_steps=100,
+        eval_strategy="no",
+        save_strategy="no",
+        logging_strategy="epoch",
+        report_to="none",
+        seed=seed,
+    )
+
+
+class WeightedTrainer(Trainer):
+    # Trainer con cross-entropy pesata per classe
+    def __init__(self, *args, class_weights=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.class_weights = class_weights
+
+    def compute_loss(self, model, inputs, return_outputs=False, **kwargs):
+        outputs = model(pixel_values=inputs["pixel_values"])
+        logits = outputs["logits"]
+        loss = torch.nn.functional.cross_entropy(
+            logits, inputs["labels"], weight=self.class_weights.to(logits.device)
+        )
+        return (loss, outputs) if return_outputs else loss
+
+
+def _commit_corrente():
+    try:
+        import subprocess
+        return subprocess.run(
+            ["git", "rev-parse", "--short", "HEAD"],
+            capture_output=True, text=True, cwd=Path(__file__).parent,
+        ).stdout.strip() or "sconosciuto"
+    except Exception:
+        return "sconosciuto"
+
+
+def _in_json(valore):
+    if isinstance(valore, np.ndarray):
+        return valore.tolist()
+    if isinstance(valore, np.generic):
+        return valore.item()
+    return str(valore)
+
+
+
 class KFoldDataset(Dataset):
     def __init__(self, model_name, seed=DEFAULT_SEED, use_augmentation=True, task_name='full', interest_classes=None):
         dataset_root = Path(PT_datasets_dir.strip())
@@ -40,7 +121,7 @@ class KFoldDataset(Dataset):
 
         # ottiene il preprocessore delle immagini
         self.preprocessor = get_preprocessor(model_name)
-        self.augmenter = get_augmenter(model_name)
+        self.augmenter = augment_comune
         self.augmentation_enabled = use_augmentation # per abilitare/disabilitare l'augmentation
 
         parent_path = dataset_root
@@ -77,6 +158,10 @@ class KFoldDataset(Dataset):
             self.image_paths.extend(list(candidate_root.rglob("*.jpeg")))
             if self.image_paths:
                 break
+
+        # ordine stabile, indipendente dal file system (i fold restano gli stessi)
+        self.image_paths = sorted(self.image_paths)
+
 
         # verifica che siano state trovate immagini
         if not self.image_paths:
@@ -142,203 +227,47 @@ class KFoldDataset(Dataset):
             self.augmentation_enabled = previous_mode
 
 class KFoldModelWrapper():
-    def __init__(self, model_name, task_name='full', interest_classes=None, mask_ratio=0.0):
+    def __init__(self, model_name, task_name='full', interest_classes=None, mask_ratio=0.0, seed=DEFAULT_SEED):
         self.model_name = model_name
         self.model = None
         self.task_name = task_name
         self.interest_classes = interest_classes
         self.mask_ratio = mask_ratio
+        self.seed = seed
+        self.predizioni = None
 
     def fit(self, train_dataset):
-
         task_labels = OCTDL.get_task_labels(task_name=self.task_name, interest_classes=self.interest_classes)
 
         # caricamento del modello
         self.model = load_model(self.model_name, num_labels=len(task_labels), mask_ratio=self.mask_ratio)
 
-        # Adatto il modello CNN al numero di labels corretto
-        is_cnn_model = self.model_name in ['resnet18', 'resnet50', 'densenet121', 'efficientnet_b0']
-        if is_cnn_model:
-            num_labels = len(task_labels)
-            # Sostituisci l'ultimo layer con il numero di labels corretto
-            if hasattr(self.model, 'classifier'):
-                old_classifier = self.model.classifier
-                # Assumendo che l'ultimo layer sia un Linear layer
-                layers = []
-                for layer in old_classifier:
-                    if isinstance(layer, torch.nn.Linear) and layer.out_features == 7:
-                        # Sostituisci il layer finale
-                        layers.append(torch.nn.Linear(layer.in_features, num_labels))
-                    else:
-                        layers.append(layer)
-                self.model.classifier = torch.nn.Sequential(*layers)
-
-        # verifica se è un modello transformers o CNN
-        is_transformers_model = self.model_name in ['vit', 'vitmae-light', 'vitmae-heavy']
-
-        if is_transformers_model:
-            # Training con Transformers Trainer
-            training_args = load_training_args()
-            training_args.do_eval = False
-            training_args.eval_strategy = "no"
-
-            trainer = Trainer(
-                model=self.model,
-                args=training_args,
-                train_dataset=train_dataset
-            )
-
-            print_info("Inizio del training con Transformers...")
-            trainer.train()
-        else:
-            # Training manuale per modelli CNN
-            self._train_cnn_model(train_dataset)
-
-    def _train_cnn_model(self, train_dataset):
-        """Training loop manuale per modelli CNN"""
-        import torch.optim as optim
-        from torch.utils.data import DataLoader
-
-        print_info("Inizio del training manuale per modello CNN...")
-
-        # Parametri di training
-        num_epochs = 20
-        batch_size = TRAIN_BATCH_SIZE
-        learning_rate = 1e-4
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-        # Sposta il modello su device
-        self.model.to(device)
-
-        # Calcola pesi di classe per gestire il dataset sbilanciato
+        # pesi delle classi calcolati sul solo train del fold
         train_labels = np.array(train_dataset.dataset.labels)[train_dataset.indices]
-        class_counts = np.bincount(train_labels, minlength=len(OCTDL.get_task_labels(task_name=self.task_name, interest_classes=self.interest_classes)))
-        class_weights = 1.0 / (class_counts + 1e-12)
-        class_weights = torch.tensor(class_weights, dtype=torch.float32, device=device)
+        class_weights = pesi_classi(train_labels, len(task_labels))
 
-        # Ottimizzatore e loss function bilanciata
-        optimizer = optim.Adam(self.model.parameters(), lr=learning_rate)
-        criterion = torch.nn.CrossEntropyLoss(weight=class_weights)
+        # stesso training per tutti i modelli
+        trainer = WeightedTrainer(
+            model=self.model,
+            args=argomenti_training(self.seed, PT_trainer_output_dir),
+            train_dataset=train_dataset,
+            class_weights=class_weights,
+        )
 
-        # DataLoader
-        train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
-
-        # Training loop
-        self.model.train()
-        for epoch in range(num_epochs):
-            epoch_loss = 0.0
-            correct = 0
-            total = 0
-
-            for batch in train_loader:
-                pixel_values = batch['pixel_values'].to(device)
-                labels = batch['labels'].to(device)
-
-                # Forward pass
-                optimizer.zero_grad()
-                outputs = self.model(pixel_values)
-                
-                # Gestisci output del modello (dict per transformers, tensor per CNN)
-                if isinstance(outputs, dict):
-                    logits = outputs["logits"]
-                    loss = outputs.get("loss")
-                    if loss is None:
-                        loss = criterion(logits, labels)
-                else:
-                    logits = outputs
-                    loss = criterion(logits, labels)
-
-                # Backward pass
-                loss.backward()
-                optimizer.step()
-
-                # Statistiche
-                epoch_loss += loss.item()
-                _, predicted = torch.max(logits.data, 1)
-                total += labels.size(0)
-                correct += (predicted == labels).sum().item()
-
-            # Log per epoca
-            avg_loss = epoch_loss / len(train_loader)
-            accuracy = 100 * correct / total
-            print_info(f"Epoch {epoch+1}/{num_epochs} - Loss: {avg_loss:.4f}, Accuracy: {accuracy:.2f}%")
+        print_info("Inizio del training (protocollo comune)...")
+        trainer.train()
+        self.trainer = trainer
 
     def score(self, val_dataset):
-        # verifica se è un modello transformers o CNN
-        is_transformers_model = self.model_name in ['vit', 'vitmae-light', 'vitmae-heavy']
+        print_info("Inizio della valutazione...")
+        self.trainer.compute_metrics = compute_metrics_for_test
+        risultato = self.trainer.predict(val_dataset, metric_key_prefix="eval")
 
-        if is_transformers_model:
-            # Valutazione con Transformers Trainer
-            import tempfile
-            trainer = Trainer(
-                model=self.model,
-                args=TrainingArguments(
-                    output_dir=tempfile.mkdtemp(),
-                    per_device_eval_batch_size=TEST_BATCH_SIZE,
-                    do_train=False,
-                    do_eval=True,
-                ),
-                compute_metrics=compute_metrics_for_test,
-            )
+        # predizioni salvate per il file JSON dei risultati
+        self.predizioni = (risultato.predictions.argmax(axis=-1), risultato.label_ids)
+        return risultato.metrics
 
-            print_info("Inizio della valutazione con Transformers...")
-            output = trainer.evaluate(val_dataset)
-            return output
-        else:
-            # Valutazione manuale per modelli CNN
-            return self._evaluate_cnn_model(val_dataset)
 
-    def _evaluate_cnn_model(self, val_dataset):
-        """Valutazione manuale per modelli CNN"""
-        import torch
-        from torch.utils.data import DataLoader
-
-        print_info("Inizio della valutazione manuale per modello CNN...")
-
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self.model.to(device)
-        self.model.eval()
-
-        # DataLoader per validation
-        val_loader = DataLoader(val_dataset, batch_size=TEST_BATCH_SIZE, shuffle=False)
-
-        all_predictions = []
-        all_labels = []
-
-        all_logits = []
-        all_labels = []
-
-        with torch.no_grad():
-            for batch in val_loader:
-                pixel_values = batch['pixel_values'].to(device)
-                labels = batch['labels'].to(device)
-
-                outputs = self.model(pixel_values)
-
-                # Gestisci output del modello
-                if isinstance(outputs, dict):
-                    logits = outputs["logits"]
-                else:
-                    logits = outputs
-
-                all_logits.append(logits.cpu())
-                all_labels.extend(labels.cpu().numpy())
-
-        logits = torch.cat(all_logits, dim=0).numpy()
-        labels = np.array(all_labels)
-
-        # Calcola le metriche usando la stessa funzione del testing
-        metrics = compute_metrics_for_test((logits, labels))
-
-        # Format the output to match Transformers format
-        output = {}
-        for key, value in metrics.items():
-            if key == 'confusion_matrix':
-                output['eval_confusion_matrix'] = value
-            else:
-                output[f'eval_{key}'] = value
-
-        return output
 
 def _compute_subset_class_counts(dataset, subset):
     labels = np.array(dataset.labels)[subset.indices]
@@ -385,7 +314,7 @@ def preprocess_final_results(outputs, classes_outputs, task_labels):
 
         # calcolo di media e deviazione standard per la metrica corrente
         mean = np.mean([output[key] for output in outputs]).item()
-        dev_std = np.std([output[key] for output in outputs]).item()
+        dev_std = np.std([output[key] for output in outputs], ddof=1).item()
 
         # memorizzazione della metrica formattata (per la stampa)
         averaged_metrics.append((
@@ -405,7 +334,7 @@ def preprocess_final_results(outputs, classes_outputs, task_labels):
         for label in task_labels:
             # calcolo di media e deviazione standard per la metrica e per la classe corrente
             mean = np.mean([class_output[key][task_labels.index(label)] for class_output in classes_outputs]).item()
-            dev_std = np.std([class_output[key][task_labels.index(label)] for class_output in classes_outputs]).item()
+            dev_std = np.std([class_output[key][task_labels.index(label)] for class_output in classes_outputs], ddof=1).item()
 
             # medie e deviazioni standard per ogni classe
             means.append(formatted(mean, metrics_formats[metric_name]))
@@ -466,7 +395,7 @@ def kfold_cv(model_name, num_folds=DEFAULT_KFOLDS, seed=DEFAULT_SEED, use_augmen
     set_seed(seed)
 
     # caricamento del dataset per la K-fold cross validation (Dataset custom)
-    dataset = KFoldDataset(model_name, seed=seed, use_augmentation=use_augmentation, task_name=task_name, interest_classes=interest_classes)
+    dataset = KFoldDataset(model_name, seed=SEED_SPLIT, use_augmentation=use_augmentation, task_name=task_name, interest_classes=interest_classes)
 
     # istanziazione delle K-fold (StratifiedGroupKFold per mantenere le classi bilanciate
     # tra i fold e evitare data leakage tra pazienti)
@@ -483,12 +412,23 @@ def kfold_cv(model_name, num_folds=DEFAULT_KFOLDS, seed=DEFAULT_SEED, use_augmen
               f"MODEL: {model_name}           \n"
               f"KFOLDS: {num_folds}           \n"
               f"SEED: {seed}                  \n"
+              f"SEED_SPLIT: {SEED_SPLIT} \n"
+              f"COMMIT: {_commit_corrente()} \n"
+              f"PROTOCOLLO: AdamW lr={LEARNING_RATE}, cosine+warmup 100, {EPOCHE} epoche, batch {TRAIN_BATCH_SIZE}, loss pesata, augmentation comune \n"
               f"DATASET: {OCTDL.DATASET_NAME} \n"
               f"TASK: {task_name} \n"
               f"INTEREST_CLASSES: {interest_classes or []} \n"
               f"AUGMENTATION: {use_augmentation} \n"
               f"OVERSAMPLE_RARE: {oversample_rare} \n"
               f"MASK_RATIO: {mask_ratio} \n")
+    
+    # risultati dettagliati di ogni fold (file JSON accanto al log)
+    risultati_json = {
+        "modello": model_name, "seed": seed, "seed_split": SEED_SPLIT,
+        "commit": _commit_corrente(), "mask_ratio": mask_ratio,
+        "classi": list(dataset.task_labels), "fold": [],
+    }
+
 
     # K-fold cross validation 
     fold_idx = 1
@@ -515,7 +455,8 @@ def kfold_cv(model_name, num_folds=DEFAULT_KFOLDS, seed=DEFAULT_SEED, use_augmen
             print_table(headings=["CLASSE", "TRAIN PRIMA", "TRAIN DOPO"], rows=rows)
 
         # addestramento (fit per il fold attuale)
-        model = KFoldModelWrapper(model_name, task_name=task_name, interest_classes=interest_classes, mask_ratio=mask_ratio)
+        model = KFoldModelWrapper(model_name, task_name=task_name, interest_classes=interest_classes, mask_ratio=mask_ratio, seed=seed)
+
         model.fit(fold_dataset_train)
 
         # valutazione (disabilita l'augmentation durante la valutazione)
@@ -526,6 +467,20 @@ def kfold_cv(model_name, num_folds=DEFAULT_KFOLDS, seed=DEFAULT_SEED, use_augmen
         print_results(output, labels=dataset.task_labels)
         log_print(log_filestem, f"Risultati del fold {fold_idx}: {output}")
         print_separator(70)
+
+        # salvataggio dei risultati del fold (immagini, pazienti, predizioni, metriche)
+        predizioni = getattr(model, "predizioni", None)
+        risultati_json["fold"].append({
+            "fold": fold_idx,
+            "immagini": [Path(str(p)).name for p in dataset.image_paths[val_idx]],
+            "pazienti": dataset.patients[val_idx].tolist(),
+            "etichette": dataset.labels[val_idx].tolist(),
+            "predizioni": None if predizioni is None else predizioni[0].tolist(),
+            "metriche": dict(output),
+        })
+        with open(Path(PT_log_dir) / f"{log_filestem}.json", "w", encoding="utf-8") as file_json:
+            json.dump(risultati_json, file_json, indent=1, default=_in_json)
+
 
         # rimozione della matrice di confusione dai risultati
         if 'eval_confusion_matrix' in output:

@@ -137,3 +137,14 @@ def test_deviazione_standard_campionaria():
     outputs = [{"eval_accuracy": 0.0}, {"eval_accuracy": 1.0}]
     righe, _ = kfoldcv.preprocess_final_results(outputs, [{}, {}], ["A"])
     assert righe[0][2] == "0.707"
+
+
+
+def test_immagine_senza_paziente_causa_un_errore(dataset_sintetico):
+    csv = dataset_sintetico.parent / "OCTDL" / "OCTDL_labels.csv"
+    righe = csv.read_text().splitlines()
+    csv.write_text("\n".join(righe[:-1]))  # l'ultima immagine non ha piu' un paziente
+
+    with pytest.raises(ValueError, match="ID paziente non trovato"):
+        kfoldcv.kfold_cv("mlp", num_folds=3, seed=0)
+

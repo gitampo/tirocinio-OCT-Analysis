@@ -182,6 +182,11 @@ class KFoldDataset(Dataset):
             self.labels = [label_to_id[self.image_paths[idx].parent.name] for idx in range(len(self.image_paths))]
         self.patients = [OCTDL.get_patient_id_safe(self.image_paths[idx].stem) for idx in range(len(self.image_paths))]
 
+        # ogni immagine deve avere il suo paziente: con ID 0 finirebbero tutte in un unico gruppo
+        senza_paziente = [path.name for path, paziente in zip(self.image_paths, self.patients) if paziente == 0]
+        if senza_paziente:
+            raise ValueError(f"ID paziente non trovato per {len(senza_paziente)} immagini, ad esempio {senza_paziente[:5]}")
+
         # indici casuali per il rimescolamento del dataset
         self.num_examples = len(self.image_paths)
         rng = np.random.default_rng(seed)
@@ -438,6 +443,14 @@ def kfold_cv(model_name, num_folds=DEFAULT_KFOLDS, seed=DEFAULT_SEED, use_augmen
     for train_idx, val_idx in gkf.split(X=dataset.image_paths, y=dataset.labels, groups=dataset.patients):
         print_info(f"Fold {fold_idx}/{num_folds}")
         log_print(log_filestem, f"Fold {fold_idx}/{num_folds}")
+        
+        # controllo: nessun paziente puo' stare sia nel train che nella validazione
+        pazienti_train = set(dataset.patients[train_idx])
+        pazienti_val = set(dataset.patients[val_idx])
+        if pazienti_train & pazienti_val:
+            raise RuntimeError(f"Fold {fold_idx}: {len(pazienti_train & pazienti_val)} pazienti sia in train che in validazione")
+        log_print(log_filestem, f"Pazienti train/validazione: {len(pazienti_train)}/{len(pazienti_val)}, in comune: 0")
+
 
         # creazione dei subset per il training e la validazione
         fold_dataset_train = Subset(dataset, train_idx)

@@ -121,8 +121,7 @@ def load_for_train(model_name, checkpoint_name, dataset_name, dataset_split, fro
     task_labels = OCTDL.get_task_labels(task_name=task_name, interest_classes=interest_classes)
 
     # caricamento del modello e degli argomenti di training
-    model = load_model(model_name, num_labels=len(task_labels))
-
+    model = load_model(model_name, num_labels=len(task_labels), pretrained=from_scratch)
     # caricamento degli argomenti di training
     training_args = load_training_args()
     save_experiment_metadata(model_name, training_args, task_name=task_name, interest_classes=interest_classes)

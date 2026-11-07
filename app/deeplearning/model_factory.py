@@ -82,16 +82,21 @@ def check_model_available(wrapped):
     return wrapper
 
 @check_model_available
-def load_model(model_name, num_labels=None):
+def load_model(model_name, num_labels=None, pretrained=True, mask_ratio=0.0):
     # caricamento del modello
     if model_name in ['resnet18', 'resnet50', 'densenet121', 'efficientnet_b0']:
         return CNN.CNNForImageClassification(variant=model_name, num_labels=num_labels or 7)
 
-    if num_labels is None:
-        model = _model_classes[model_name]()
-    else:
-        model = _model_classes[model_name](num_labels=num_labels)
-    return model
+    kwargs = {}
+    if num_labels is not None:
+        kwargs['num_labels'] = num_labels
+    if model_name != 'mlp':
+        kwargs['pretrained'] = pretrained
+    if model_name.startswith('vitmae'):
+        kwargs['mask_ratio'] = mask_ratio
+
+    return _model_classes[model_name](**kwargs)
+
 
 @check_model_available
 def get_train_preprocessor(model_name):

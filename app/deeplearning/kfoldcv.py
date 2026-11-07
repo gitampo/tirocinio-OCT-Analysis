@@ -142,18 +142,19 @@ class KFoldDataset(Dataset):
             self.augmentation_enabled = previous_mode
 
 class KFoldModelWrapper():
-    def __init__(self, model_name, task_name='full', interest_classes=None):
+    def __init__(self, model_name, task_name='full', interest_classes=None, mask_ratio=0.0):
         self.model_name = model_name
         self.model = None
         self.task_name = task_name
         self.interest_classes = interest_classes
+        self.mask_ratio = mask_ratio
 
     def fit(self, train_dataset):
 
         task_labels = OCTDL.get_task_labels(task_name=self.task_name, interest_classes=self.interest_classes)
 
         # caricamento del modello
-        self.model = load_model(self.model_name, num_labels=len(task_labels))
+        self.model = load_model(self.model_name, num_labels=len(task_labels), mask_ratio=self.mask_ratio)
 
         # Adatto il modello CNN al numero di labels corretto
         is_cnn_model = self.model_name in ['resnet18', 'resnet50', 'densenet121', 'efficientnet_b0']
@@ -460,7 +461,7 @@ def print_class_distribution_per_fold(gkf, dataset):
     # stampa della distribuzione delle classi per ogni fold
     print_table(headings=["", *dataset.task_labels, ""], rows=folds_distributions)
 
-def kfold_cv(model_name, num_folds=DEFAULT_KFOLDS, seed=DEFAULT_SEED, use_augmentation=True, oversample_rare=False, task_name='full', interest_classes=None):
+def kfold_cv(model_name, num_folds=DEFAULT_KFOLDS, seed=DEFAULT_SEED, use_augmentation=True, oversample_rare=False, task_name='full', interest_classes=None, mask_ratio=0.0):
     # impostazione del seed per la ripoducibilità
     set_seed(seed)
 
@@ -486,7 +487,8 @@ def kfold_cv(model_name, num_folds=DEFAULT_KFOLDS, seed=DEFAULT_SEED, use_augmen
               f"TASK: {task_name} \n"
               f"INTEREST_CLASSES: {interest_classes or []} \n"
               f"AUGMENTATION: {use_augmentation} \n"
-              f"OVERSAMPLE_RARE: {oversample_rare} \n")
+              f"OVERSAMPLE_RARE: {oversample_rare} \n"
+              f"MASK_RATIO: {mask_ratio} \n")
 
     # K-fold cross validation 
     fold_idx = 1
@@ -513,7 +515,7 @@ def kfold_cv(model_name, num_folds=DEFAULT_KFOLDS, seed=DEFAULT_SEED, use_augmen
             print_table(headings=["CLASSE", "TRAIN PRIMA", "TRAIN DOPO"], rows=rows)
 
         # addestramento (fit per il fold attuale)
-        model = KFoldModelWrapper(model_name, task_name=task_name, interest_classes=interest_classes)
+        model = KFoldModelWrapper(model_name, task_name=task_name, interest_classes=interest_classes, mask_ratio=mask_ratio)
         model.fit(fold_dataset_train)
 
         # valutazione (disabilita l'augmentation durante la valutazione)

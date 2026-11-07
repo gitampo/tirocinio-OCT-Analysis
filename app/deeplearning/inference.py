@@ -33,7 +33,7 @@ def infer_disease(images, seed=DEFAULT_SEED):
     if images is None or len(images) == 0: return ([],[])
 
     # caricamento del modello e del checkpoint
-    model = load_model(model_name)
+    model = load_model(model_name, pretrained=False)
     model.load_state_dict(torch.load(checkpoint_path, weights_only=True, map_location=torch.device('cpu')))
 
     # impostazione del modello in modalità di valutazione

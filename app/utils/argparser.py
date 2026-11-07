@@ -268,6 +268,15 @@ def setup_kfoldcv_parser(subparsers):
         help=help('Abilita l\'oversampling delle classi rare nel training set di ogni fold.')
     )
     kfoldcv_parser.add_argument(
+        '--mask-ratio',
+        action='store',
+        metavar='RATIO',
+        default=0.0,
+        type=float,
+        help=help('Frazione di patch mascherate da ViTMAE, anche in valutazione. 0.75 riproduce il report di giugno. \n(default: 0.0)')
+    )
+
+    kfoldcv_parser.add_argument(
         '--task',
         action='store',
         metavar='TASK',
@@ -417,7 +426,8 @@ def handle_args(args):
                   use_augmentation=not args.no_augmentation,
                   oversample_rare=args.oversample_rare,
                   task_name=args.task,
-                  interest_classes=interest_classes)
+                  interest_classes=interest_classes,
+                  mask_ratio=args.mask_ratio)
 
     # gestisce il comando di listing
     elif args.command == 'list':

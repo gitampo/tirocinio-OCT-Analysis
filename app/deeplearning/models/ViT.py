@@ -8,17 +8,12 @@ def _use_pretrained_weights():
     return os.getenv("OCT_USE_PRETRAINED", "0").lower() in {"1", "true", "yes", "y"}
 
 
-def _load_pretrained_model(model_cls, model_name, config):
-    if _use_pretrained_weights():
-        try:
-            return model_cls.from_pretrained(model_name, config=config)
-        except Exception as exc:
-            print(f"[WARN] Impossibile scaricare i pesi pretrained per {model_name}: {exc}. Uso inizializzazione casuale.")
-    try:
-        return model_cls.from_pretrained(model_name, config=config, local_files_only=True)
-    except Exception as exc:
-        print(f"[WARN] Pesi pretrained non presenti localmente per {model_name}: {exc}. Uso inizializzazione casuale.")
+def _load_pretrained_model(model_cls, model_name, config, pretrained=True):
+    if not pretrained:
+        # i pesi verranno sovrascritti da un checkpoint
         return model_cls(config)
+    return model_cls.from_pretrained(model_name, config=config)
+
 
 
 def _load_preprocessor(model_name):
@@ -33,17 +28,18 @@ def _load_preprocessor(model_name):
 config = ViTConfig()
 
 # Processor per le immagini
-processor = _load_preprocessor('google/vit-base-patch16-224')
+processor = ViTImageProcessor.from_pretrained('google/vit-base-patch16-224')
+
 
 # ----------------------------------------------------------------------------
 # ----------------------------------------------------------------------------
 
 # ViT per la classificazione delle immagini (head leggera)
 class ViTForImageClassification(torch.nn.Module):
-    def __init__(self, num_labels=7):
+    def __init__(self, num_labels=7, pretrained=True):
         super().__init__()
 
-        self.backbone = _load_pretrained_model(ViTModel, "google/vit-base-patch16-224", config)
+        self.backbone = _load_pretrained_model(ViTModel, "google/vit-base-patch16-224", config, pretrained)
         self.classifier = torch.nn.Sequential(
             torch.nn.Linear(self.backbone.config.hidden_size, 128),
             torch.nn.ReLU(),

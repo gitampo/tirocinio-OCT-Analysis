@@ -132,7 +132,7 @@ def load_for_test(model_name, checkpoint_name, dataset_name, dataset_split, seed
     task_labels = OCTDL.get_task_labels(task_name=task_name, interest_classes=interest_classes)
 
     # caricamento del modello e del preprocess
-    model = load_model(model_name, num_labels=len(task_labels))
+    model = load_model(model_name, num_labels=len(task_labels), pretrained=False)
     preprocessor = get_preprocessor(model_name)
 
     # caricamento del checkpoint
@@ -259,7 +259,7 @@ def test(model_name, checkpoint_name, dataset_name=DEFAULT_DATASET, dataset_spli
 
 def load_for_test_external(model_name, checkpoint_name, dataset_path):
     # caricamento del modello e del preprocess
-    model = load_model(model_name)
+    model = load_model(model_name, pretrained=False)
     preprocessor = get_preprocessor(model_name)
 
     # caricamento del checkpoint

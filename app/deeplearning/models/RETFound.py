@@ -8,17 +8,12 @@ def _use_pretrained_weights():
     return os.getenv("OCT_USE_PRETRAINED", "0").lower() in {"1", "true", "yes", "y"}
 
 
-def _load_pretrained_model(model_cls, model_name, config):
-    if _use_pretrained_weights():
-        try:
-            return model_cls.from_pretrained(model_name, config=config)
-        except Exception as exc:
-            print(f"[WARN] Impossibile scaricare i pesi pretrained per {model_name}: {exc}. Uso inizializzazione casuale.")
-    try:
-        return model_cls.from_pretrained(model_name, config=config, local_files_only=True)
-    except Exception as exc:
-        print(f"[WARN] Pesi pretrained non presenti localmente per {model_name}: {exc}. Uso inizializzazione casuale.")
+def _load_pretrained_model(model_cls, model_name, config, pretrained=True):
+    if not pretrained:
+        # i pesi verranno sovrascritti da un checkpoint
         return model_cls(config)
+    return model_cls.from_pretrained(model_name, config=config)
+
 
 
 def _load_preprocessor(model_name):
@@ -33,7 +28,7 @@ def _load_preprocessor(model_name):
 # RETFound è basato su ViT, quindi utilizzo la configurazione di ViT come base
 try:
     config = ViTConfig()
-    processor = _load_preprocessor('google/vit-base-patch16-224')
+    processor = ViTImageProcessor.from_pretrained('google/vit-base-patch16-224')
 except Exception:
     # Fallback configuration if HuggingFace models are unavailable
     config = ViTConfig()
@@ -45,11 +40,10 @@ except Exception:
 
 class RETFoundForImageClassification(torch.nn.Module):
 
-    def __init__(self, num_labels=7, pretrained_checkpoint=None):
+    def __init__(self, num_labels=7, pretrained_checkpoint=None, pretrained=True):
         super().__init__()
 
-        # Load backbone (Vision Transformer as foundation model)
-        self.backbone = _load_pretrained_model(ViTModel, "google/vit-base-patch16-224", config)
+        self.backbone = _load_pretrained_model(ViTModel, "google/vit-base-patch16-224", config, pretrained)
         
         # Load pretrained RETFound checkpoint if provided
         if pretrained_checkpoint is not None:

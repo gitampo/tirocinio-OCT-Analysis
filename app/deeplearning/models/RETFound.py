@@ -1,99 +1,95 @@
-import os
+import argparse
+
 import torch
+from huggingface_hub import hf_hub_download
 from torchvision import transforms
-from transformers import ViTImageProcessor, ViTModel, ViTConfig
+from transformers import ViTImageProcessor
+
+# Pesi ufficiali RETFound-MAE per OCT (licenza CC BY-NC 4.0, accesso su richiesta)
+REPO_PESI = "YukunZhou/RETFound_mae_natureOCT"
+FILE_PESI = "RETFound_mae_natureOCT.pth"
+ARCHITETTURA = "vit_large_patch16_224"
+
+# Chiavi del checkpoint MAE che l'encoder per la classificazione non usa
+CHIAVI_MANCANTI_ATTESE = {"fc_norm.weight", "fc_norm.bias"}
+CHIAVI_IGNORATE = {"mask_token", "norm.weight", "norm.bias"}
+
+# Normalizzazione ImageNet e interpolazione bicubica, come nel repository ufficiale
+processor = ViTImageProcessor(
+    image_mean=[0.485, 0.456, 0.406],
+    image_std=[0.229, 0.224, 0.225],
+    resample=3,
+)
 
 
-def _use_pretrained_weights():
-    return os.getenv("OCT_USE_PRETRAINED", "0").lower() in {"1", "true", "yes", "y"}
+def _crea_encoder():
+    import timm  # import locale: serve solo quando si usa questo modello
+
+    return timm.create_model(ARCHITETTURA, pretrained=False, num_classes=0, global_pool="avg")
 
 
-def _load_pretrained_model(model_cls, model_name, config, pretrained=True):
-    if not pretrained:
-        # i pesi verranno sovrascritti da un checkpoint
-        return model_cls(config)
-    return model_cls.from_pretrained(model_name, config=config)
+def _scarica_pesi():
+    # il token viene letto dalla variabile d'ambiente HF_TOKEN o dal login di Hugging Face
+    percorso = hf_hub_download(REPO_PESI, FILE_PESI)
+
+    # weights_only=True evita di eseguire codice arbitrario contenuto nel file
+    torch.serialization.add_safe_globals([argparse.Namespace])
+    return torch.load(percorso, map_location="cpu", weights_only=True)["model"]
 
 
+def _carica_pesi(encoder, stato):
+    esito = encoder.load_state_dict(stato, strict=False)
 
-def _load_preprocessor(model_name):
-    try:
-        return ViTImageProcessor.from_pretrained(model_name, local_files_only=True)
-    except Exception as exc:
-        print(f"[WARN] Processor pretrained non trovato localmente per {model_name}: {exc}. Uso un processor di default.")
-        return ViTImageProcessor()
-
-
-# Configurazione del modello
-# RETFound è basato su ViT, quindi utilizzo la configurazione di ViT come base
-try:
-    config = ViTConfig()
-    processor = ViTImageProcessor.from_pretrained('google/vit-base-patch16-224')
-except Exception:
-    # Fallback configuration if HuggingFace models are unavailable
-    config = ViTConfig()
-    processor = ViTImageProcessor()
-
-# ============================================================================
-# RETFound per la classificazione delle immagini OCT (wrapper con backbone ViT)
-# ============================================================================
-
-class RETFoundForImageClassification(torch.nn.Module):
-
-    def __init__(self, num_labels=7, pretrained_checkpoint=None, pretrained=True):
-        super().__init__()
-
-        self.backbone = _load_pretrained_model(ViTModel, "google/vit-base-patch16-224", config, pretrained)
-        
-        # Load pretrained RETFound checkpoint if provided
-        if pretrained_checkpoint is not None:
-            try:
-                checkpoint = torch.load(pretrained_checkpoint, map_location=torch.device('cpu'))
-                self.backbone.load_state_dict(checkpoint, strict=False)
-            except Exception as e:
-                print(f"Warning: Could not load RETFound checkpoint: {e}")
-        
-        # Medical imaging classification head (lightweight for transfer learning)
-        self.classifier = torch.nn.Sequential(
-            torch.nn.Linear(self.backbone.config.hidden_size, 256),
-            torch.nn.ReLU(),
-            torch.nn.Dropout(0.3),
-            torch.nn.Linear(256, 128),
-            torch.nn.ReLU(),
-            torch.nn.Dropout(0.2),
-            torch.nn.Linear(128, num_labels)
+    mancanti = set(esito.missing_keys) - CHIAVI_MANCANTI_ATTESE
+    inattese = [
+        chiave for chiave in esito.unexpected_keys
+        if not chiave.startswith("decoder") and chiave not in CHIAVI_IGNORATE
+    ]
+    if mancanti or inattese:
+        raise RuntimeError(
+            f"Pesi RETFound non compatibili. Mancanti: {sorted(mancanti)}. Inattese: {inattese}"
         )
 
+
+class RETFoundForImageClassification(torch.nn.Module):
+    def __init__(self, num_labels=7, pretrained=True):
+        super().__init__()
+
+        stato = _scarica_pesi() if pretrained else None
+
+        self.backbone = _crea_encoder()
+        if stato is not None:
+            _carica_pesi(self.backbone, stato)
+
+        # testa lineare, inizializzata come nel repository ufficiale
+        self.classifier = torch.nn.Linear(self.backbone.num_features, num_labels)
+        torch.nn.init.trunc_normal_(self.classifier.weight, std=2e-5)
+        torch.nn.init.zeros_(self.classifier.bias)
+
     def freeze_backbone(self):
-        
         for param in self.backbone.parameters():
             param.requires_grad = False
 
     def unfreeze_backbone(self):
-        
         for param in self.backbone.parameters():
             param.requires_grad = True
 
     def forward(self, pixel_values, labels=None):
-        
-        outputs = self.backbone(pixel_values)
-        logits = self.classifier(outputs.last_hidden_state[:, 0])
-        
+        logits = self.classifier(self.backbone(pixel_values))
+
         loss = None
         if labels is not None:
             loss = self.compute_loss(logits, labels)
-        
+
         return {"loss": loss, "logits": logits}
 
     def compute_loss(self, logits, labels):
-        """Compute cross-entropy loss."""
         return torch.nn.functional.cross_entropy(logits, labels)
 
 
 # Funzioni per il preprocessing
 
 def preprocess_batch(examples):
-    
     global processor
 
     # Conversione in RGB
@@ -106,7 +102,7 @@ def preprocess_batch(examples):
 
 
 def augment(examples):
-   
+
     transform = transforms.Compose([
         transforms.RandomHorizontalFlip(p=0.5),
         transforms.RandomVerticalFlip(p=0.5),
@@ -117,5 +113,5 @@ def augment(examples):
 
     # augmentation dei dati di addestramento
     examples['image'] = [transform(image.convert('RGB')) for image in examples['image']]
-    
+
     return examples

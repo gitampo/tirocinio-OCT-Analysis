@@ -7,11 +7,11 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parent / "app"))
 
 from deeplearning.model_factory import load_model
-from deeplearning.models import RETFound, ViT, ViTMAE
+from deeplearning.models import ViT, ViTMAE
+
 
 CLASSI_BACKBONE = [
     ("vit", ViT.ViTModel),
-    ("retfound", RETFound.ViTModel),
     ("vitmae-light", ViTMAE.ViTMAEModel),
     ("vitmae-heavy", ViTMAE.ViTMAEModel),
 ]
@@ -45,5 +45,4 @@ def test_normalizzazione_uguale_ai_modelli_ufficiali():
     assert int(ViTMAE.processor.resample) == 2
     assert list(ViT.processor.image_mean) == [0.5, 0.5, 0.5]
     assert list(ViT.processor.image_std) == [0.5, 0.5, 0.5]
-    assert list(RETFound.processor.image_mean) == [0.5, 0.5, 0.5]
-    assert list(RETFound.processor.image_std) == [0.5, 0.5, 0.5]
+    

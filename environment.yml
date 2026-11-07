@@ -260,6 +260,7 @@ dependencies:
   - svt-av1=1.4.1
   - sympy=1.14.0
   - threadpoolctl=3.6.0
+  - timm=1.0.30
   - tk=8.6.13
   - tokenizers=0.21.3
   - torchaudio=2.5.1

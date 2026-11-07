@@ -51,10 +51,10 @@ def test_retfound_instantiation():
     try:
         from deeplearning.model_factory import load_model
         print("\nInstantiating RETFound model...")
-        model = load_model('retfound')
+        model = load_model('retfound', pretrained=False)
         print(f"✓ Model created: {type(model).__name__}")
-        print(f"  - Backbone: Vision Transformer")
-        print(f"  - Classification head: 256→128→7")
+        print(f"  - Backbone: ViT-Large (RETFound)")
+        print(f"  - Classification head: 1024→7")
         print(f"  - Transfer learning: freeze_backbone() / unfreeze_backbone()")
         return True
     except Exception as e:

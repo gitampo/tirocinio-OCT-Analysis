@@ -264,7 +264,8 @@ class KFoldModelWrapper():
         risultato = self.trainer.predict(val_dataset, metric_key_prefix="eval")
 
         # predizioni salvate per il file JSON dei risultati
-        self.predizioni = (risultato.predictions.argmax(axis=-1), risultato.label_ids)
+        probabilita = torch.softmax(torch.as_tensor(risultato.predictions), dim=-1).numpy()
+        self.predizioni = (probabilita.argmax(axis=-1), risultato.label_ids, probabilita)
         return risultato.metrics
 
 
@@ -476,6 +477,7 @@ def kfold_cv(model_name, num_folds=DEFAULT_KFOLDS, seed=DEFAULT_SEED, use_augmen
             "pazienti": dataset.patients[val_idx].tolist(),
             "etichette": dataset.labels[val_idx].tolist(),
             "predizioni": None if predizioni is None else predizioni[0].tolist(),
+            "probabilita": None if predizioni is None else predizioni[2].tolist(),
             "metriche": dict(output),
         })
         with open(Path(PT_log_dir) / f"{log_filestem}.json", "w", encoding="utf-8") as file_json:

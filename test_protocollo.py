@@ -85,6 +85,10 @@ def test_il_json_contiene_predizioni_e_pazienti_separati(dataset_sintetico):
     assert all(a.isdisjoint(b) for i, a in enumerate(pazienti) for b in pazienti[i + 1:])
     for fold in risultati["fold"]:
         assert len(fold["predizioni"]) == len(fold["etichette"]) == len(fold["immagini"])
+        probabilita = np.array(fold["probabilita"])
+        assert probabilita.shape == (len(fold["immagini"]), len(risultati["classi"]))
+        assert np.allclose(probabilita.sum(axis=1), 1.0)
+        assert (probabilita.argmax(axis=1) == fold["predizioni"]).all()
 
 
 def test_pesi_classi_bilanciati():

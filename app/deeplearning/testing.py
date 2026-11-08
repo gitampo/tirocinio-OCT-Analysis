@@ -221,7 +221,7 @@ def print_results(output, labels):
 
     # stampa di matrice di confusione
     if confusion_matrix is not None:
-        print("\n MATRICE DI CONFUSIONE \n (predizioni a lato; verità sopra):\n")
+        print("\n MATRICE DI CONFUSIONE \n (verità a lato; predizioni sopra):\n")
         print_confusion_matrix(confusion_matrix, labels=labels)
 
     # stampa della tabella delle metriche

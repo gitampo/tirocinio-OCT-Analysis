@@ -10,3 +10,5 @@ app/database/data/octanalysis.db
 TODO.txt
 app/logs/*
 !app/logs/.gitkeep
+app/risultati_kaggle/**/grafici/
+

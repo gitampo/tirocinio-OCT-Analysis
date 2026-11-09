@@ -3,6 +3,7 @@
 Uso:  python app/grafici_kfold.py app/risultati_kaggle/b7806f9
 Crea la sottocartella "grafici" con:
   - controllo_fold.txt            stessi fold tra modelli e pazienti mai in due fold
+  - distribuzione_classi.csv      pazienti e immagini per classe in ogni fold
   - riepilogo.csv                 media e deviazione standard per modello
   - boxplot_fold.png              variabilita' tra i fold, per modello
   - <modello>_confusione.png      matrice di confusione sommata sui 5 fold
@@ -24,6 +25,15 @@ COLORI = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#008300", "#62
 LINEE = ["-", "--", "-.", ":", "-", "--", "-."]
 TESTO, TESTO_SECONDARIO, GRIGLIA = "#0b0b0b", "#52514e", "#e4e3df"
 
+# ordine fisso dei modelli: prima le CNN, poi i transformer, poi RETFound.
+# Il colore di un modello e' legato alla sua posizione qui, quindi non cambia tra un grafico e l'altro
+ORDINE = ["resnet18", "densenet121", "efficientnet_b0", "vit", "vitmae-light", "vitmae-heavy", "retfound"]
+
+
+def posizione(r):
+    return ORDINE.index(r["modello"]) if r["modello"] in ORDINE else len(ORDINE)
+
+
 METRICHE = {
     "eval_accuracy": "Accuracy",
     "eval_balanced_accuracy": "Balanced accuracy",
@@ -40,11 +50,10 @@ plt.rcParams.update({
 
 
 def carica(cartella):
-    risultati = [json.loads(p.read_text(encoding="utf-8")) for p in sorted(Path(cartella).glob("*.json"))]
+    risultati = [json.loads(p.read_text(encoding="utf-8")) for p in sorted(Path(cartella).rglob("*.json"))]
     if not risultati:
         sys.exit(f"Nessun file JSON in {cartella}")
-    return risultati
-
+    return sorted(risultati, key=posizione)
 
 def controlla_fold(risultati, uscita):
     righe = []
@@ -61,6 +70,28 @@ def controlla_fold(risultati, uscita):
     testo = "\n".join(righe)
     (uscita / "controllo_fold.txt").write_text(testo + "\n", encoding="utf-8")
     print(testo)
+
+def distribuzione_classi(risultati, uscita):
+    # i fold sono gli stessi per tutti i modelli (vedi controllo_fold.txt), quindi basta il primo
+    r = risultati[0]
+    classi = r["classi"]
+    righe = []
+    for f in r["fold"]:
+        conteggi = np.bincount(f["etichette"], minlength=len(classi))
+        righe.append((f"Fold {f['fold']}", len(set(f["pazienti"])), conteggi))
+    pazienti_totali = len(set().union(*(f["pazienti"] for f in r["fold"])))
+    righe.append(("Totale", pazienti_totali, sum(conteggi for _, _, conteggi in righe)))
+
+    with open(uscita / "distribuzione_classi.csv", "w", newline="", encoding="utf-8") as file:
+        scrittore = csv.writer(file)
+        scrittore.writerow(["fold", "pazienti", "immagini"] + classi + [f"% {c}" for c in classi])
+        for nome, pazienti, conteggi in righe:
+            percentuali = conteggi / conteggi.sum() * 100
+            scrittore.writerow([nome, pazienti, conteggi.sum()] + conteggi.tolist()
+                               + [f"{p:.1f}" for p in percentuali])
+            print(f"{nome:8} pazienti {pazienti:3}  immagini {conteggi.sum():4}  "
+                  + "  ".join(f"{c} {n:4}" for c, n in zip(classi, conteggi)))
+
 
 
 def dati_aggregati(r):
@@ -98,20 +129,43 @@ def riepilogo(risultati, uscita):
 def boxplot_fold(risultati, uscita):
     modelli = [r["modello"] for r in risultati]
     figura, assi = plt.subplots(1, len(METRICHE), figsize=(3.2 * len(METRICHE), 3.6), sharey=False)
+    fuori_scala = False
     for asse, (chiave, nome) in zip(assi, METRICHE.items()):
         valori = [[f["metriche"][chiave] for f in r["fold"]] for r in risultati]
         scatola = asse.boxplot(valori, widths=0.5, patch_artist=True, showfliers=False,
                                medianprops={"color": TESTO, "linewidth": 1.5})
-        for i, (patch, punti) in enumerate(zip(scatola["boxes"], valori)):
-            patch.set_facecolor(COLORI[i] + "40")
-            patch.set_edgecolor(COLORI[i])
+        for i, (patch, punti, r) in enumerate(zip(scatola["boxes"], valori, risultati)):
+            colore = COLORI[posizione(r)]
+            patch.set_facecolor(colore + "40")
+            patch.set_edgecolor(colore)
             # i 5 fold come punti, perche' con 5 valori la scatola da sola dice poco
             x = np.full(len(punti), i + 1) + np.linspace(-0.12, 0.12, len(punti))
-            asse.scatter(x, punti, s=22, color=COLORI[i], edgecolor="white", linewidth=0.8, zorder=3)
+            asse.scatter(x, punti, s=22, color=colore, edgecolor="white", linewidth=0.8, zorder=3)
+
+        # un fold anomalo (molto sotto tutti gli altri) schiaccerebbe l'asse e nasconderebbe
+        # le differenze tra i modelli: l'asse si ferma sopra di lui e il fold e' segnato con
+        # un triangolo sul bordo e il suo valore
+        tutti = np.concatenate(valori)
+        q1, q3 = np.percentile(tutti, [25, 75])
+        soglia = q1 - 3 * (q3 - q1)
+        if (tutti < soglia).any():
+            fuori_scala = True
+            fondo = tutti[tutti >= soglia].min() - 0.02
+            asse.set_ylim(bottom=fondo)
+            for i, (punti, r) in enumerate(zip(valori, risultati)):
+                for v in punti:
+                    if v < soglia:
+                        asse.scatter(i + 1, fondo, marker="v", s=45, color=COLORI[posizione(r)],
+                                     clip_on=False, zorder=4)
+                        asse.annotate(f"{v:.2f}", (i + 1, fondo), xytext=(6, 2), textcoords="offset points",
+                                      fontsize=8, color=TESTO_SECONDARIO)
+
         asse.set_title(nome, color=TESTO)
         asse.set_xticks(range(1, len(modelli) + 1), modelli, rotation=30, ha="right")
         asse.grid(axis="x", visible=False)
-    figura.suptitle("Variabilita' tra i 5 fold (ogni punto e' un fold)", color=TESTO)
+    titolo = "Variabilita' tra i 5 fold (ogni punto e' un fold"
+    titolo += "; \u25bc = fold fuori scala, con il suo valore)" if fuori_scala else ")"
+    figura.suptitle(titolo, color=TESTO)
     figura.tight_layout()
     figura.savefig(uscita / "boxplot_fold.png")
     plt.close(figura)
@@ -176,6 +230,7 @@ def main():
 
     risultati = carica(cartella)
     controlla_fold(risultati, uscita)
+    distribuzione_classi(risultati, uscita)    
     riepilogo(risultati, uscita)
     boxplot_fold(risultati, uscita)
     for r in risultati:

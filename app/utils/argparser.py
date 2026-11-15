@@ -291,6 +291,53 @@ def setup_kfoldcv_parser(subparsers):
         default=None,
         help=help('Classi d\'interesse per il task interest_vs_rest, separate da virgola (es. AMD,DME).')
     )
+def setup_validazione_esterna_parser(subparsers):
+    # costruzione del comando validazione-esterna
+    esterna_parser = subparsers.add_parser(
+        'validazione-esterna',
+        description=description("Addestra un modello su tutto OCTDL e salva le predizioni sul test set di C8"),
+        help=help("Validazione esterna: training su tutto OCTDL, predizioni sul test set di C8"),
+        formatter_class=help_formatter,
+        epilog=epilog([(f"python {PROG} validazione-esterna -m densenet121", "Validazione esterna del modello selezionato"),
+                       (f"python {PROG} validazione-esterna -m densenet121 --prova", "Prova veloce su CPU: 64 immagini, 1 epoca")]),
+        add_help=False)
+
+    esterna_parser.add_argument(
+        '-h', '--help',
+        action='help',
+        help=help('Mostra questo messaggio di help.')
+    )
+    esterna_parser.add_argument(
+        '-m', '--model',
+        action='store',
+        metavar='MODEL',
+        required=True,
+        choices=available_models(),
+        help=help('Specifica il modello da addestrare su OCTDL e valutare su C8. \n(vedi anche "list --models")')
+    )
+    esterna_parser.add_argument(
+        '-S', '--seed',
+        action='store',
+        metavar='SEED',
+        default=DEFAULT_SEED,
+        type=int,
+        help=help(f'Specifica il seed del training, a scopo di riproducibilità. \n(default: {DEFAULT_SEED})')
+    )
+    esterna_parser.add_argument(
+        '--mask-ratio',
+        action='store',
+        metavar='RATIO',
+        default=0.0,
+        type=float,
+        help=help('Frazione di patch mascherate da ViTMAE. \n(default: 0.0)')
+    )
+    esterna_parser.add_argument(
+        '--prova',
+        action='store_true',
+        help=help('Prova veloce del procedimento (64 immagini di training, 1 epoca, 4 immagini C8 per classe).')
+    )
+
+
 
 def setup_list_parser(subparsers):
     # costruzione del comando list
@@ -346,6 +393,7 @@ def get_args():
     setup_test_parser(subparsers)
     setup_test_external_parser(subparsers)
     setup_kfoldcv_parser(subparsers)
+    setup_validazione_esterna_parser(subparsers)
     setup_list_parser(subparsers)
 
     # ottiene gli argument
@@ -428,6 +476,16 @@ def handle_args(args):
                   task_name=args.task,
                   interest_classes=interest_classes,
                   mask_ratio=args.mask_ratio)
+        
+    # gestisce il comando di validazione esterna
+    elif args.command == 'validazione-esterna':
+        from deeplearning.validazione_esterna import validazione_esterna # lazy loading
+
+        validazione_esterna(model_name=args.model,
+                            seed=args.seed,
+                            mask_ratio=args.mask_ratio,
+                            prova=args.prova)
+
 
     # gestisce il comando di listing
     elif args.command == 'list':

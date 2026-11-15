@@ -38,6 +38,7 @@ class ViTMAEForImageClassification_heavy(torch.nn.Module):
     def __init__(self, num_labels=7, pretrained=True, mask_ratio=0.0):
         super().__init__()
 
+        self.mask_ratio = mask_ratio
         self.backbone = _load_pretrained_model(ViTMAEModel, "facebook/vit-mae-base", ViTMAEConfig(mask_ratio=mask_ratio), pretrained)
         self.classifier = torch.nn.Sequential(
             torch.nn.Linear(self.backbone.config.hidden_size, 256),
@@ -54,6 +55,9 @@ class ViTMAEForImageClassification_heavy(torch.nn.Module):
             param.requires_grad = False
 
     def forward(self, pixel_values, labels=None):
+        # la mascheratura serve solo come regolarizzazione in training: in valutazione
+        # il modello deve vedere l'immagine intera, altrimenti le predizioni cambiano a ogni esecuzione
+        self.backbone.embeddings.config.mask_ratio = self.mask_ratio if self.training else 0.0
         outputs = self.backbone(pixel_values)
         logits = self.classifier(outputs.last_hidden_state[:, 0])
         loss = None
@@ -71,6 +75,7 @@ class ViTMAEForImageClassification_light(torch.nn.Module):
     def __init__(self, num_labels=7, pretrained=True, mask_ratio=0.0):
         super().__init__()
 
+        self.mask_ratio = mask_ratio
         self.backbone = _load_pretrained_model(ViTMAEModel, "facebook/vit-mae-base", ViTMAEConfig(mask_ratio=mask_ratio), pretrained)
         self.classifier = torch.nn.Sequential(
             torch.nn.Linear(self.backbone.config.hidden_size, 128),
@@ -87,6 +92,9 @@ class ViTMAEForImageClassification_light(torch.nn.Module):
             param.requires_grad = False
 
     def forward(self, pixel_values, labels=None):
+        # la mascheratura serve solo come regolarizzazione in training: in valutazione
+        # il modello deve vedere l'immagine intera, altrimenti le predizioni cambiano a ogni esecuzione
+        self.backbone.embeddings.config.mask_ratio = self.mask_ratio if self.training else 0.0
         outputs = self.backbone(pixel_values)
         logits = self.classifier(outputs.last_hidden_state[:, 0])
         loss = None

@@ -273,7 +273,7 @@ def setup_kfoldcv_parser(subparsers):
         metavar='RATIO',
         default=0.0,
         type=float,
-        help=help('Frazione di patch mascherate da ViTMAE, anche in valutazione. 0.75 riproduce il report di giugno. \n(default: 0.0)')
+        help=help('Frazione di patch mascherate da ViTMAE durante il training (in valutazione nessuna). Il report di giugno usava 0.75. \n(default: 0.0)')
     )
 
     kfoldcv_parser.add_argument(

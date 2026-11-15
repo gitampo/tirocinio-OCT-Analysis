@@ -1,0 +1,10 @@
+MODEL: resnet18 
+SEED: 42 
+COMMIT: af3acbd 
+PROTOCOLLO: AdamW lr=5e-05, cosine+warmup 100, 20 epoche, batch 8, loss pesata, augmentation comune 
+TRAIN: OCTDL completo, 2064 immagini 
+TEST: 2800 immagini da /kaggle/input/datasets/obulisainaren/retinal-oct-c8/RetinalOCT_Dataset/RetinalOCT_Dataset/test 
+MASK_RATIO: 0.0 
+PROVA: False 
+
+Risultati salvati in validazione_esterna.json

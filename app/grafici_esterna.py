@@ -11,7 +11,12 @@ Crea la sottocartella "grafici" con:
   - calibrazione.png             diagramma di affidabilita' sulla mappatura estesa
 
 Il modello "ensemble" (media delle probabilita') e' calcolato qui, a posteriori: va presentato
-come analisi esplorativa, non come un modello scelto prima di vedere i risultati.
+come analisi esplorativa, non come un modello scelto prima di vedere i risultati. Usa sempre i
+cinque modelli della prima validazione esterna (MODELLI_ENSEMBLE), cosi' aggiungere altri file
+alla cartella non cambia i suoi numeri.
+
+I modelli addestrati con mascheratura (mask_ratio > 0, solo ViTMAE) compaiono con il valore nel
+nome, es. "vitmae-heavy mask 0.75", per distinguerli dalla stessa architettura senza mascheratura.
 """
 import csv
 import json
@@ -38,6 +43,7 @@ ORDINE_C8 = ["AMD", "CNV", "DRUSEN", "DME", "MH", "NORMAL", "CSR", "DR"]
 SOGLIA = 0.9
 RICAMPIONAMENTI = 2000
 ENSEMBLE = "ensemble"
+MODELLI_ENSEMBLE = ["resnet18", "densenet121", "efficientnet_b0", "vit", "retfound"]
 
 
 def carica(cartella):
@@ -45,7 +51,16 @@ def carica(cartella):
     risultati = [r for r in risultati if "classi_c8" in r and not r.get("prova")]
     if not risultati:
         sys.exit(f"Nessun file JSON di validazione esterna in {cartella}")
-    risultati.sort(key=lambda r: ORDINE.index(r["modello"]) if r["modello"] in ORDINE else len(ORDINE))
+    for r in risultati:
+        # "architettura" resta il nome del modello, "modello" diventa l'etichetta mostrata
+        r["architettura"] = r["modello"]
+        if r.get("mask_ratio"):
+            r["modello"] = f"{r['modello']} mask {r['mask_ratio']:g}"
+    risultati.sort(key=lambda r: (ORDINE.index(r["architettura"]) if r["architettura"] in ORDINE else len(ORDINE),
+                                  r.get("mask_ratio") or 0))
+    nomi = [r["modello"] for r in risultati]
+    if len(set(nomi)) < len(nomi):
+        sys.exit(f"Due file con lo stesso modello e la stessa mascheratura: {nomi}")
     for r in risultati:
         r["probabilita"] = np.array(r["probabilita"])
         r["predizioni"] = r["probabilita"].argmax(axis=1)
@@ -55,15 +70,19 @@ def carica(cartella):
 
 def aggiungi_ensemble(risultati):
     # media delle probabilita' dei modelli: possibile solo se tutti hanno predetto le stesse immagini
-    base = risultati[0]
-    probabilita = np.mean([r["probabilita"] for r in risultati], axis=0)
+    membri = [r for r in risultati if r["modello"] in MODELLI_ENSEMBLE]
+    if len(membri) < 2:
+        return risultati
+    base = membri[0]
+    probabilita = np.mean([r["probabilita"] for r in membri], axis=0)
     return risultati + [{
-        "modello": ENSEMBLE, "classi": base["classi"], "immagini": base["immagini"],
+        "modello": ENSEMBLE, "membri": membri, "classi": base["classi"], "immagini": base["immagini"],
         "classi_c8": base["classi_c8"], "probabilita": probabilita, "predizioni": probabilita.argmax(axis=1),
     }]
 
 
-def colore(nome):
+def colore(r):
+    nome = r.get("architettura", r["modello"])
     return COLORI[ORDINE.index(nome)] if nome in ORDINE else TESTO_SECONDARIO
 
 
@@ -72,7 +91,8 @@ def controlla(risultati, uscita):
     riferimento = risultati[0]
     for r in risultati:
         stesse = r["immagini"] == riferimento["immagini"]
-        righe.append(f"{r['modello']}: commit {r['commit']}, seed {r['seed']}, epoche {r['epoche']}, "
+        righe.append(f"{r['modello']}: commit {r['commit']}, seed {r['seed']}, mask_ratio {r.get('mask_ratio')}, "
+                     f"epoche {r['epoche']}, "
                      f"immagini di training {r['immagini_train']}, immagini C8 {len(r['immagini'])}, "
                      f"stesse immagini di {riferimento['modello']}: {stesse}")
         if not stesse:
@@ -159,24 +179,34 @@ def riepilogo(risultati, uscita):
 
 
 def mcnemar(risultati, uscita):
-    confronti = list(combinations(risultati, 2))
+    # due famiglie di confronti, ciascuna con la propria correzione di Bonferroni:
+    # "principale" = i cinque modelli della prima validazione e il loro ensemble (tutte le coppie),
+    # "altri" = ogni coppia che coinvolge almeno un modello aggiunto dopo (es. le varianti di ViTMAE)
+    principali = [r for r in risultati if r["modello"] in MODELLI_ENSEMBLE + [ENSEMBLE]]
+    famiglie = {"principale": list(combinations(principali, 2)),
+                "altri": [(a, b) for a, b in combinations(risultati, 2)
+                          if a not in principali or b not in principali]}
     with open(uscita / "mcnemar.csv", "w", newline="", encoding="utf-8") as file:
         scrittore = csv.writer(file)
-        scrittore.writerow(["primo", "secondo", "corrette solo primo", "corrette solo secondo", "p esatto",
-                            f"significativo con Bonferroni (soglia {0.05 / len(confronti):.4f})"])
-        for a, b in confronti:
-            selezione, attese = mappa(a, "principale")
-            giusto_a = a["predizioni"][selezione] == attese
-            giusto_b = b["predizioni"][selezione] == attese
-            solo_a, solo_b = int((giusto_a & ~giusto_b).sum()), int((~giusto_a & giusto_b).sum())
-            p = binomtest(solo_a, solo_a + solo_b).pvalue if solo_a + solo_b else 1.0
-            scrittore.writerow([a["modello"], b["modello"], solo_a, solo_b, f"{p:.4g}", p < 0.05 / len(confronti)])
-            print(f"{a['modello']} vs {b['modello']}: solo il primo {solo_a}, solo il secondo {solo_b}, p {p:.4g}")
+        scrittore.writerow(["famiglia", "primo", "secondo", "corrette solo primo", "corrette solo secondo",
+                            "p esatto", "soglia Bonferroni", "significativo"])
+        for famiglia, confronti in famiglie.items():
+            soglia = 0.05 / len(confronti) if confronti else 0.05
+            for a, b in confronti:
+                selezione, attese = mappa(a, "principale")
+                giusto_a = a["predizioni"][selezione] == attese
+                giusto_b = b["predizioni"][selezione] == attese
+                solo_a, solo_b = int((giusto_a & ~giusto_b).sum()), int((~giusto_a & giusto_b).sum())
+                p = binomtest(solo_a, solo_a + solo_b).pvalue if solo_a + solo_b else 1.0
+                scrittore.writerow([famiglia, a["modello"], b["modello"], solo_a, solo_b, f"{p:.4g}",
+                                    f"{soglia:.4f}", p < soglia])
+                print(f"[{famiglia}] {a['modello']} vs {b['modello']}: solo il primo {solo_a}, "
+                      f"solo il secondo {solo_b}, p {p:.4g}")
 
 
 def disaccordo(risultati, uscita):
-    modelli = [r for r in risultati if r["modello"] != ENSEMBLE]
     ensemble = next(r for r in risultati if r["modello"] == ENSEMBLE)
+    modelli = ensemble["membri"]
     predizioni = np.array([r["predizioni"] for r in modelli])
     discordi = ~(predizioni == predizioni[0]).all(axis=0)
     selezione, attese = mappa(ensemble, "principale")
@@ -273,9 +303,9 @@ def calibrazione(risultati, uscita, intervalli=10):
                 quote.append(dentro.mean())
         asse.plot([0, 1], [0, 1], color=TESTO_SECONDARIO, linestyle=":", linewidth=1)
         # area del punto proporzionale alla quota di immagini nell'intervallo
-        asse.scatter(centri, accuratezze, s=np.array(quote) * 400 + 8, color=colore(r["modello"]), zorder=3,
+        asse.scatter(centri, accuratezze, s=np.array(quote) * 400 + 8, color=colore(r), zorder=3,
                      clip_on=False)
-        asse.plot(centri, accuratezze, color=colore(r["modello"]), linewidth=1.5)
+        asse.plot(centri, accuratezze, color=colore(r), linewidth=1.5)
         asse.set(xlim=(0, 1), ylim=(0, 1), xlabel="Confidenza dichiarata",
                  title=f"{r['modello']} (ECE {errore_calibrazione(confidenza, corrette):.2f})")
     assi[0].set_ylabel("Accuratezza effettiva")
@@ -295,10 +325,10 @@ def main():
 
     risultati = carica(cartella)
     controlla(risultati, uscita)
-    con_ensemble = aggiungi_ensemble(risultati) if len(risultati) > 1 else risultati
+    con_ensemble = aggiungi_ensemble(risultati)
     riepilogo(con_ensemble, uscita)
     mcnemar(con_ensemble, uscita)
-    if len(risultati) > 1:
+    if any(r["modello"] == ENSEMBLE for r in con_ensemble):
         disaccordo(con_ensemble, uscita)
     matrice_c8_octdl(risultati, uscita)
     confidenza_soglia(con_ensemble, uscita)

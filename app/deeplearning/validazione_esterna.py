@@ -18,7 +18,8 @@ from utils.funs import get_available_filename
 from utils.log import log_print
 from utils.print import print_info, print_success_box
 from . import kfoldcv
-from .kfoldcv import KFoldDataset, KFoldModelWrapper, SEED_SPLIT, _commit_corrente, _in_json
+from .kfoldcv import (KFoldDataset, KFoldModelWrapper, SEED_SPLIT, _build_oversampled_subset, _commit_corrente,
+                      _in_json, epoche_passi_costanti)
 from .model_factory import get_preprocessor
 from .training import set_seed
 from . import DEFAULT_SEED, TRAIN_BATCH_SIZE
@@ -70,7 +71,7 @@ def stampa_riepilogo(classi_c8, predizioni, classi_octdl):
               + f"{sum(conteggi.values()):>8}")
 
 
-def validazione_esterna(model_name, seed=DEFAULT_SEED, mask_ratio=0.0, prova=False):
+def validazione_esterna(model_name, seed=DEFAULT_SEED, mask_ratio=0.0, oversample_rare=False, prova=False):
     set_seed(seed)
 
     # training set: tutto OCTDL, con l'augmentation comune (come nei fold della cross-validation)
@@ -83,6 +84,13 @@ def validazione_esterna(model_name, seed=DEFAULT_SEED, mask_ratio=0.0, prova=Fal
         indici = indici[:64]
         kfoldcv.EPOCHE = 1   # prova veloce su CPU: 64 immagini e 1 epoca (argomenti_training legge EPOCHE)
     train = Subset(dataset, indici)
+
+    # opzionale: oversampling delle classi rare, con lo stesso numero di passi della baseline
+    # (le copie ricevono ogni volta un'augmentation diversa, perche' e' applicata al caricamento)
+    epoche = kfoldcv.EPOCHE
+    if oversample_rare:
+        train = _build_oversampled_subset(dataset, train, seed=seed)
+        epoche = epoche_passi_costanti(len(indici), len(train))
 
     # test set: test di C8, senza etichette per il modello
     cartella_test = trova_test_c8()
@@ -99,11 +107,12 @@ def validazione_esterna(model_name, seed=DEFAULT_SEED, mask_ratio=0.0, prova=Fal
               f"TRAIN: OCTDL completo, {len(train)} immagini \n"
               f"TEST: {len(test)} immagini da {cartella_test} \n"
               f"MASK_RATIO: {mask_ratio} \n"
+              f"OVERSAMPLE_RARE: {oversample_rare} ({len(indici)} -> {len(train)} immagini, {epoche:.3f} epoche) \n"
               f"PROVA: {prova} \n")
 
     # addestramento con lo stesso wrapper (e quindi lo stesso protocollo) della cross-validation
     modello = KFoldModelWrapper(model_name, mask_ratio=mask_ratio, seed=seed)
-    modello.fit(train)
+    modello.fit(train, epoche)
 
     # predizioni su C8 (il Trainer mette da solo il modello in modalita' valutazione).
     # Senza etichette il Trainer terrebbe anche la voce "loss" (None) dell'output e andrebbe in errore
@@ -115,7 +124,8 @@ def validazione_esterna(model_name, seed=DEFAULT_SEED, mask_ratio=0.0, prova=Fal
     classi_octdl = list(dataset.task_labels)
     risultati = {
         "modello": model_name, "seed": seed, "commit": _commit_corrente(), "mask_ratio": mask_ratio,
-        "prova": prova, "epoche": kfoldcv.EPOCHE, "immagini_train": len(train),
+        "oversample_rare": oversample_rare,
+        "prova": prova, "epoche": epoche, "immagini_train": len(train),
         "classi": classi_octdl,
         "immagini": [p.name for p in test.image_paths],
         "classi_c8": test.classi_c8,

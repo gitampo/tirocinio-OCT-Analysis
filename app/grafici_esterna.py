@@ -17,6 +17,8 @@ alla cartella non cambia i suoi numeri.
 
 I modelli addestrati con mascheratura (mask_ratio > 0, solo ViTMAE) compaiono con il valore nel
 nome, es. "vitmae-heavy mask 0.75", per distinguerli dalla stessa architettura senza mascheratura.
+Allo stesso modo i run con un seed diverso da 42 compaiono come "efficientnet_b0 seed 1234"
+e quelli con oversampling delle classi rare come "resnet18 oversampling".
 """
 import csv
 import json
@@ -44,6 +46,7 @@ SOGLIA = 0.9
 RICAMPIONAMENTI = 2000
 ENSEMBLE = "ensemble"
 MODELLI_ENSEMBLE = ["resnet18", "densenet121", "efficientnet_b0", "vit", "retfound"]
+SEED_PRINCIPALE = 42   # i run con un altro seed compaiono come "<modello> seed <n>" e restano fuori dall'ensemble
 
 
 def carica(cartella):
@@ -56,11 +59,16 @@ def carica(cartella):
         r["architettura"] = r["modello"]
         if r.get("mask_ratio"):
             r["modello"] = f"{r['modello']} mask {r['mask_ratio']:g}"
+        if r.get("oversample_rare"):
+            r["modello"] = f"{r['modello']} oversampling"
+        if r["seed"] != SEED_PRINCIPALE:
+            r["modello"] = f"{r['modello']} seed {r['seed']}"
     risultati.sort(key=lambda r: (ORDINE.index(r["architettura"]) if r["architettura"] in ORDINE else len(ORDINE),
-                                  r.get("mask_ratio") or 0))
+                                  r.get("mask_ratio") or 0, r["seed"] != SEED_PRINCIPALE, r["seed"],
+                                  bool(r.get("oversample_rare"))))
     nomi = [r["modello"] for r in risultati]
     if len(set(nomi)) < len(nomi):
-        sys.exit(f"Due file con lo stesso modello e la stessa mascheratura: {nomi}")
+        sys.exit(f"Due file con lo stesso modello, mascheratura, oversampling e seed: {nomi}")
     for r in risultati:
         r["probabilita"] = np.array(r["probabilita"])
         r["predizioni"] = r["probabilita"].argmax(axis=1)
@@ -181,11 +189,17 @@ def riepilogo(risultati, uscita):
 def mcnemar(risultati, uscita):
     # due famiglie di confronti, ciascuna con la propria correzione di Bonferroni:
     # "principale" = i cinque modelli della prima validazione e il loro ensemble (tutte le coppie),
-    # "altri" = ogni coppia che coinvolge almeno un modello aggiunto dopo (es. le varianti di ViTMAE)
+    # "altri" = ogni coppia senza oversampling che coinvolge almeno un modello aggiunto dopo (es. le varianti di ViTMAE),
+    # "oversampling" = ogni modello con oversampling contro lo stesso modello senza (stessa mascheratura e stesso seed)
     principali = [r for r in risultati if r["modello"] in MODELLI_ENSEMBLE + [ENSEMBLE]]
+    senza = [r for r in risultati if not r.get("oversample_rare")]
     famiglie = {"principale": list(combinations(principali, 2)),
-                "altri": [(a, b) for a, b in combinations(risultati, 2)
-                          if a not in principali or b not in principali]}
+                "altri": [(a, b) for a, b in combinations(senza, 2)
+                          if a not in principali or b not in principali],
+                "oversampling": [(a, b) for a in senza for b in risultati
+                                 if b.get("oversample_rare") and a.get("architettura") == b["architettura"]
+                                 and (a.get("mask_ratio") or 0) == (b.get("mask_ratio") or 0)
+                                 and a["seed"] == b["seed"]]}
     with open(uscita / "mcnemar.csv", "w", newline="", encoding="utf-8") as file:
         scrittore = csv.writer(file)
         scrittore.writerow(["famiglia", "primo", "secondo", "corrette solo primo", "corrette solo secondo",

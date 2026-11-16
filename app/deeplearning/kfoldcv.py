@@ -57,12 +57,19 @@ def pesi_classi(labels, num_classes):
     return torch.tensor(len(labels) / (num_classes * np.maximum(conteggi, 1)), dtype=torch.float32)
 
 
-def argomenti_training(seed, output_dir):
+def epoche_passi_costanti(immagini_originali, immagini_oversampling):
+    # con l'oversampling ogni epoca contiene piu' immagini: le epoche si riducono in proporzione,
+    # cosi' il numero di passi di ottimizzazione resta quello della baseline (EPOCHE epoche sul
+    # training originale) e il confronto misura solo l'effetto del bilanciamento delle classi
+    return EPOCHE * immagini_originali / immagini_oversampling
+
+
+def argomenti_training(seed, output_dir, epoche=None):
     return TrainingArguments(
         output_dir=output_dir,
         per_device_train_batch_size=TRAIN_BATCH_SIZE,
         per_device_eval_batch_size=TEST_BATCH_SIZE,
-        num_train_epochs=EPOCHE,
+        num_train_epochs=EPOCHE if epoche is None else epoche,   # anche frazionario: il Trainer lo converte in passi
         learning_rate=LEARNING_RATE,
         lr_scheduler_type="cosine_with_restarts",
         warmup_steps=100,
@@ -241,7 +248,7 @@ class KFoldModelWrapper():
         self.seed = seed
         self.predizioni = None
 
-    def fit(self, train_dataset):
+    def fit(self, train_dataset, epoche=None):
         task_labels = OCTDL.get_task_labels(task_name=self.task_name, interest_classes=self.interest_classes)
 
         # caricamento del modello
@@ -254,7 +261,7 @@ class KFoldModelWrapper():
         # stesso training per tutti i modelli
         trainer = WeightedTrainer(
             model=self.model,
-            args=argomenti_training(self.seed, PT_trainer_output_dir),
+            args=argomenti_training(self.seed, PT_trainer_output_dir, epoche),
             train_dataset=train_dataset,
             class_weights=class_weights,
         )
@@ -432,6 +439,7 @@ def kfold_cv(model_name, num_folds=DEFAULT_KFOLDS, seed=DEFAULT_SEED, use_augmen
     risultati_json = {
         "modello": model_name, "seed": seed, "seed_split": SEED_SPLIT,
         "commit": _commit_corrente(), "mask_ratio": mask_ratio,
+        "augmentation": use_augmentation, "oversample_rare": oversample_rare,
         "classi": list(dataset.task_labels), "fold": [],
     }
 
@@ -457,6 +465,8 @@ def kfold_cv(model_name, num_folds=DEFAULT_KFOLDS, seed=DEFAULT_SEED, use_augmen
         fold_dataset_val = Subset(dataset, val_idx)
 
         # opzionale: oversampling delle classi rare nel train fold
+        # (stesso numero di passi della baseline, vedi epoche_passi_costanti)
+        epoche = None
         if oversample_rare:
             before_counts = _compute_subset_class_counts(dataset, fold_dataset_train)
             fold_dataset_train = _build_oversampled_subset(dataset, fold_dataset_train, seed=seed + fold_idx)
@@ -468,10 +478,14 @@ def kfold_cv(model_name, num_folds=DEFAULT_KFOLDS, seed=DEFAULT_SEED, use_augmen
 
             print_table(headings=["CLASSE", "TRAIN PRIMA", "TRAIN DOPO"], rows=rows)
 
+            epoche = epoche_passi_costanti(len(train_idx), len(fold_dataset_train))
+            log_print(log_filestem, f"Oversampling: {len(train_idx)} -> {len(fold_dataset_train)} immagini di training, "
+                                    f"{epoche:.3f} epoche (stessi passi di {EPOCHE} epoche senza oversampling)")
+
         # addestramento (fit per il fold attuale)
         model = KFoldModelWrapper(model_name, task_name=task_name, interest_classes=interest_classes, mask_ratio=mask_ratio, seed=seed)
 
-        model.fit(fold_dataset_train)
+        model.fit(fold_dataset_train, epoche)
 
         # valutazione (disabilita l'augmentation durante la valutazione)
         with dataset.eval_mode():  
@@ -492,6 +506,8 @@ def kfold_cv(model_name, num_folds=DEFAULT_KFOLDS, seed=DEFAULT_SEED, use_augmen
             "predizioni": None if predizioni is None else predizioni[0].tolist(),
             "probabilita": None if predizioni is None else predizioni[2].tolist(),
             "metriche": dict(output),
+            "immagini_train": len(fold_dataset_train),
+            "epoche": EPOCHE if epoche is None else epoche,
         })
         with open(Path(PT_log_dir) / f"{log_filestem}.json", "w", encoding="utf-8") as file_json:
             json.dump(risultati_json, file_json, indent=1, default=_in_json)

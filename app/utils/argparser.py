@@ -332,6 +332,11 @@ def setup_validazione_esterna_parser(subparsers):
         help=help('Frazione di patch mascherate da ViTMAE. \n(default: 0.0)')
     )
     esterna_parser.add_argument(
+        '--oversample-rare',
+        action='store_true',
+        help=help('Abilita l\'oversampling delle classi rare nel training (stesso numero di passi della baseline).')
+    )
+    esterna_parser.add_argument(
         '--prova',
         action='store_true',
         help=help('Prova veloce del procedimento (64 immagini di training, 1 epoca, 4 immagini C8 per classe).')
@@ -484,6 +489,7 @@ def handle_args(args):
         validazione_esterna(model_name=args.model,
                             seed=args.seed,
                             mask_ratio=args.mask_ratio,
+                            oversample_rare=args.oversample_rare,
                             prova=args.prova)
 
 

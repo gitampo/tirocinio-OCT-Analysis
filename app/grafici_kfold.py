@@ -31,7 +31,13 @@ ORDINE = ["resnet18", "densenet121", "efficientnet_b0", "vit", "vitmae-light", "
 
 
 def posizione(r):
-    return ORDINE.index(r["modello"]) if r["modello"] in ORDINE else len(ORDINE)
+    # indice dell'architettura in ORDINE: decide il colore, uguale per tutte le varianti di un modello
+    nome = r.get("architettura", r["modello"])
+    return ORDINE.index(nome) if nome in ORDINE else len(ORDINE)
+
+
+def ordinamento(r):
+    return posizione(r), r.get("mask_ratio") or 0, bool(r.get("oversample_rare"))
 
 
 METRICHE = {
@@ -53,7 +59,17 @@ def carica(cartella):
     risultati = [json.loads(p.read_text(encoding="utf-8")) for p in sorted(Path(cartella).rglob("*.json"))]
     if not risultati:
         sys.exit(f"Nessun file JSON in {cartella}")
-    return sorted(risultati, key=posizione)
+    for r in risultati:
+        # "architettura" resta il nome del modello, "modello" diventa l'etichetta mostrata
+        r["architettura"] = r["modello"]
+        if r.get("mask_ratio"):
+            r["modello"] = f"{r['modello']} mask {r['mask_ratio']:g}"
+        if r.get("oversample_rare"):
+            r["modello"] = f"{r['modello']} oversampling"
+    nomi = [r["modello"] for r in risultati]
+    if len(set(nomi)) < len(nomi):
+        sys.exit(f"Due file con lo stesso modello, mascheratura e oversampling: {nomi}")
+    return sorted(risultati, key=ordinamento)
 
 def controlla_fold(risultati, uscita):
     righe = []
